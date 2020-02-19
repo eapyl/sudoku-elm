@@ -72,8 +72,8 @@ type Msg
     = GenerateBoard
     | FreeCellSelected (List Cell) Cell
     | RandomValueGenerated (List Cell) Position CValue
-    | NextGo
     | ValuesForBoxGenerated ( BoxGroup, BoxGroup ) (Maybe ( BoxGroup, BoxGroup )) (List CValue)
+    | RemoveValueFromBoard (List Position)
 
 
 
@@ -85,6 +85,22 @@ type Msg
 allValues : List CValue
 allValues =
     [ One, Two, Three, Four, Five, Six, Seven, Eight, Nine ]
+
+
+positionCompleteGenerator : Random.Generator (List Position)
+positionCompleteGenerator =
+    List.range 0 81
+        |> List.map rawIndexToPossiblePosition
+        |> List.filterMap
+            (\( mr, mc ) ->
+                case ( mr, mc ) of
+                    ( Just r, Just c ) ->
+                        Just ( r, c )
+
+                    _ ->
+                        Nothing
+            )
+        |> Random.List.shuffle
 
 
 valueCompleteGenerator : Random.Generator (List CValue)
@@ -109,7 +125,7 @@ generateBoard freeCells =
             Random.generate (FreeCellSelected freeCells) <| freeCellGenerator head tail
 
         [] ->
-            Cmd.none
+            Random.generate RemoveValueFromBoard positionCompleteGenerator
 
 
 type SolutionCount
@@ -118,13 +134,31 @@ type SolutionCount
     | More
 
 
-runBacktracking : Board -> List Cell -> SolutionCount
-runBacktracking =
-    backtracking Zero
+hasOnlyOneSolution : Board -> List Cell -> Bool
+hasOnlyOneSolution board freeCells =
+    case backtracking False Zero board freeCells of
+        Zero ->
+            False
+
+        Single ->
+            True
+
+        More ->
+            False
 
 
-backtracking : SolutionCount -> Board -> List Cell -> SolutionCount
-backtracking count board freeCells =
+hasAtLeastOneSolution : Board -> List Cell -> Bool
+hasAtLeastOneSolution board freeCells =
+    case backtracking True Zero board freeCells of
+        Zero ->
+            False
+
+        _ ->
+            True
+
+
+backtracking : Bool -> SolutionCount -> Board -> List Cell -> SolutionCount
+backtracking oneSolutionEnough count board freeCells =
     case freeCells of
         head :: tail ->
             let
@@ -137,27 +171,24 @@ backtracking count board freeCells =
                             let
                                 updatedBoard =
                                     board
-                                        |> Array.map
-                                            (\c ->
-                                                if c.pos == head.pos then
-                                                    { c | value = possibleValue }
-
-                                                else
-                                                    c
-                                            )
+                                        |> Array.set (posToInt head.pos) (Cell head.pos possibleValue)
                             in
-                            case backtracking solutionCount updatedBoard tail of
+                            case backtracking oneSolutionEnough solutionCount updatedBoard tail of
                                 Zero ->
                                     tryValuesForCell Zero otherValues
 
                                 Single ->
-                                    Single
+                                    if oneSolutionEnough then
+                                        Single
+
+                                    else
+                                        tryValuesForCell Single otherValues
 
                                 More ->
                                     More
 
                         [] ->
-                            Zero
+                            solutionCount
             in
             allValues
                 |> List.filter (\a -> List.member a usedValues |> not)
@@ -183,11 +214,6 @@ update msg model =
             , generateBoard <| getFreeCells model.board
             )
 
-        NextGo ->
-            ( model
-            , generateBoard <| getFreeCells model.board
-            )
-
         RandomValueGenerated freeCells cellPos randomValue ->
             let
                 filteredCells =
@@ -196,29 +222,20 @@ update msg model =
 
                 updatedBoard =
                     model.board
-                        |> Array.map
-                            (\c ->
-                                if c.pos == cellPos then
-                                    { c | value = randomValue }
+                        |> Array.set (posToInt cellPos) (Cell cellPos randomValue)
 
-                                else
-                                    c
-                            )
-
-                tryToSolve =
-                    runBacktracking updatedBoard filteredCells
+                oneSolution =
+                    hasAtLeastOneSolution updatedBoard filteredCells
 
                 ( updatedModel, remainingCells ) =
                     if List.member ( cellPos, randomValue ) model.triedValues then
                         ( model.board, freeCells )
 
-                    else
-                        case tryToSolve of
-                            Zero ->
-                                ( model.board, freeCells )
+                    else if oneSolution then
+                        ( updatedBoard, filteredCells )
 
-                            _ ->
-                                ( updatedBoard, filteredCells )
+                    else
+                        ( model.board, freeCells )
             in
             ( { model
                 | board = updatedModel
@@ -323,7 +340,7 @@ update msg model =
                                         c
                             )
             in
-            ( { model | board = updatedBoard }
+            ( { model | board = updatedBoard, generationStatus = Just "Initial board are generated" }
             , case nextBoxPosition of
                 Just ( B, B ) ->
                     Random.generate (ValuesForBoxGenerated ( B, B ) (Just ( C, C ))) valueCompleteGenerator
@@ -335,11 +352,45 @@ update msg model =
                     generateBoard <| getFreeCells updatedBoard
             )
 
+        RemoveValueFromBoard positionsToClean ->
+            ( { model | board = tryToRemoveValuesFromBoard positionsToClean model.board }
+            , Cmd.none
+            )
+
 
 
 --
 -- SUDOKU
 --
+
+
+tryToRemoveValuesFromBoard : List Position -> Board -> Board
+tryToRemoveValuesFromBoard positionsToClean board =
+    case positionsToClean of
+        currentPositionToClean :: restPositions ->
+            let
+                updatedBoard =
+                    board
+                        |> Array.map
+                            (\c ->
+                                if c.pos == currentPositionToClean then
+                                    { c | value = Empty }
+
+                                else
+                                    c
+                            )
+
+                onlyOneSolution =
+                    hasOnlyOneSolution updatedBoard <| getFreeCells updatedBoard
+            in
+            if onlyOneSolution then
+                tryToRemoveValuesFromBoard restPositions updatedBoard
+
+            else
+                tryToRemoveValuesFromBoard restPositions board
+
+        [] ->
+            board
 
 
 getUsedValues : Board -> Position -> List CValue
@@ -367,46 +418,16 @@ type BoxGroup
     | C
 
 
-getBoxIndex : Position -> Index
+getBoxIndex : Position -> Int
 getBoxIndex ( row, col ) =
     let
-        boxRowColumn ind =
-            if ind == First || ind == Second || ind == Third then
-                A
+        rowInd =
+            indexToInt row
 
-            else if ind == Fourth || ind == Fifth || ind == Sixth then
-                B
-
-            else
-                C
+        colInd =
+            indexToInt col
     in
-    case ( boxRowColumn row, boxRowColumn col ) of
-        ( A, A ) ->
-            First
-
-        ( A, B ) ->
-            Second
-
-        ( A, C ) ->
-            Third
-
-        ( B, A ) ->
-            Fourth
-
-        ( B, B ) ->
-            Fifth
-
-        ( B, C ) ->
-            Sixth
-
-        ( C, A ) ->
-            Seventh
-
-        ( C, B ) ->
-            Eighth
-
-        ( C, C ) ->
-            Ninth
+    rowInd // 3 * 3 + colInd // 3
 
 
 getAllNonEmptyValuesInBox : Board -> Position -> List CValue
@@ -455,6 +476,42 @@ getAllNonEmptyValues isRow board index =
 --
 -- UTILS
 --
+
+
+posToInt : Position -> Int
+posToInt ( row, col ) =
+    indexToInt row * size + indexToInt col
+
+
+indexToInt : Index -> Int
+indexToInt index =
+    case index of
+        First ->
+            0
+
+        Second ->
+            1
+
+        Third ->
+            2
+
+        Fourth ->
+            3
+
+        Fifth ->
+            4
+
+        Sixth ->
+            5
+
+        Seventh ->
+            6
+
+        Eighth ->
+            7
+
+        Ninth ->
+            8
 
 
 fromInt : Int -> Maybe Index
@@ -625,7 +682,6 @@ mainView model =
                 , tr [] (localGenerateRow Eighth)
                 , tr [] (localGenerateRow Ninth)
                 ]
-            , div [] [ button [ onClick NextGo ] [ text "Next" ] ]
             , div [ divBottomCss ]
                 [ button [ btnCss ] [ div [ divInTdCss ] [ div [ divInBtnCss ] [ text "1" ] ] ]
                 , button [ btnCss ] [ div [ divInTdCss ] [ div [ divInBtnCss ] [ text "2" ] ] ]
