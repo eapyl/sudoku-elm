@@ -52,7 +52,7 @@ type Index
 
 
 type alias Board =
-    Array Cell
+    List Cell
 
 
 type alias Model =
@@ -89,7 +89,7 @@ allValues =
 
 positionCompleteGenerator : Random.Generator (List Position)
 positionCompleteGenerator =
-    List.range 0 81
+    List.range 0 80
         |> List.map rawIndexToPossiblePosition
         |> List.filterMap
             (\( mr, mc ) ->
@@ -171,7 +171,14 @@ backtracking oneSolutionEnough count board freeCells =
                             let
                                 updatedBoard =
                                     board
-                                        |> Array.set (posToInt head.pos) (Cell head.pos possibleValue)
+                                        |> List.map
+                                            (\c ->
+                                                if c.pos == head.pos then
+                                                    { c | value = possibleValue }
+
+                                                else
+                                                    c
+                                            )
                             in
                             case backtracking oneSolutionEnough solutionCount updatedBoard tail of
                                 Zero ->
@@ -222,7 +229,14 @@ update msg model =
 
                 updatedBoard =
                     model.board
-                        |> Array.set (posToInt cellPos) (Cell cellPos randomValue)
+                        |> List.map
+                            (\c ->
+                                if c.pos == cellPos then
+                                    { c | value = randomValue }
+
+                                else
+                                    c
+                            )
 
                 oneSolution =
                     hasAtLeastOneSolution updatedBoard filteredCells
@@ -312,7 +326,7 @@ update msg model =
 
                 updatedBoard =
                     model.board
-                        |> Array.map
+                        |> List.map
                             (\c ->
                                 let
                                     searchedValue =
@@ -353,7 +367,7 @@ update msg model =
             )
 
         RemoveValueFromBoard positionsToClean ->
-            ( { model | board = tryToRemoveValuesFromBoard positionsToClean model.board }
+            ( { model | board = tryToRemoveValuesFromBoard (List.take 60 positionsToClean) model.board }
             , Cmd.none
             )
 
@@ -371,7 +385,7 @@ tryToRemoveValuesFromBoard positionsToClean board =
             let
                 updatedBoard =
                     board
-                        |> Array.map
+                        |> List.map
                             (\c ->
                                 if c.pos == currentPositionToClean then
                                     { c | value = Empty }
@@ -433,13 +447,12 @@ getBoxIndex ( row, col ) =
 getAllNonEmptyValuesInBox : Board -> Position -> List CValue
 getAllNonEmptyValuesInBox board pos =
     board
-        |> Array.filter (\c -> c.value /= Empty)
-        |> Array.filter
+        |> List.filter (\c -> c.value /= Empty)
+        |> List.filter
             (\c ->
                 getBoxIndex pos == getBoxIndex c.pos
             )
-        |> Array.map (\c -> c.value)
-        |> Array.toList
+        |> List.map (\c -> c.value)
 
 
 getAllNonEmptyValuesInRow : Board -> Index -> List CValue
@@ -455,8 +468,8 @@ getAllNonEmptyValuesInColumn =
 getAllNonEmptyValues : Bool -> Board -> Index -> List CValue
 getAllNonEmptyValues isRow board index =
     board
-        |> Array.filter (\c -> c.value /= Empty)
-        |> Array.filter
+        |> List.filter (\c -> c.value /= Empty)
+        |> List.filter
             (\c ->
                 let
                     ( row, col ) =
@@ -468,8 +481,7 @@ getAllNonEmptyValues isRow board index =
                 else
                     col == index
             )
-        |> Array.map (\c -> c.value)
-        |> Array.toList
+        |> List.map (\c -> c.value)
 
 
 
@@ -606,8 +618,8 @@ rawIndexToPossiblePosition i =
 
 initEmptyBoard : Board
 initEmptyBoard =
-    Array.initialize boardSize (\i -> rawIndexToPossiblePosition i)
-        |> Array.toList
+    List.range 0 80
+        |> List.map (\i -> rawIndexToPossiblePosition i)
         |> List.filterMap
             (\( r, c ) ->
                 case ( r, c ) of
@@ -618,13 +630,12 @@ initEmptyBoard =
                         Nothing
             )
         |> List.map (\pos -> Cell pos Empty)
-        |> Array.fromList
 
 
 getCValue : Board -> Position -> CValue
 getCValue board ( row, column ) =
     board
-        |> Array.filter
+        |> List.filter
             (\c ->
                 let
                     ( r, col ) =
@@ -632,7 +643,7 @@ getCValue board ( row, column ) =
                 in
                 r == row && col == column
             )
-        |> Array.get 0
+        |> List.head
         |> Maybe.map (\c -> c.value)
         |> Maybe.withDefault Empty
 
@@ -640,8 +651,7 @@ getCValue board ( row, column ) =
 getFreeCells : Board -> List Cell
 getFreeCells board =
     board
-        |> Array.filter (\c -> c.value == Empty)
-        |> Array.toList
+        |> List.filter (\c -> c.value == Empty)
 
 
 
