@@ -1,4 +1,4 @@
-module CssStyles exposing (btnCss, divBottomCss, divInBtnCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
+module Styles exposing (btnCss, divBottomCss, divInBtnCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
 
 import Css
     exposing
