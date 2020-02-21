@@ -4,14 +4,25 @@ import Html.Styled exposing (Html, button, div, td, text, tr)
 import Html.Styled.Events exposing (onClick)
 import Model exposing (Board, CValue(..), Index(..), Model)
 import Msg exposing (Msg)
-import Styles exposing (btnCss, btnRightCss, divBottomCss, divInBtnCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
-import Sudoku exposing (allIndexes, fromInt, getCValue, indexToInt, size)
+import Styles exposing (btnCss, btnRightCss, divBottomCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
+import Sudoku exposing (allIndexes, getCValue, indexToInt)
 
 
 view : Model -> List (Html Msg)
 view model =
     [ div [ mainDivCss ]
         (mainView model)
+    ]
+
+
+modalWindow : List (Html Msg)
+modalWindow =
+    [ Html.Styled.table []
+        [ tr
+            []
+            [ td [] [ text "sample " ]
+            ]
+        ]
     ]
 
 

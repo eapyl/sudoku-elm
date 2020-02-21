@@ -19,7 +19,7 @@ import Model exposing (Board, CValue(..), Cell, Index(..), Model, Position)
 
 emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] (Just "Generating")
+    Model initEmptyBoard initEmptyBoard [] (Just "Generating") False
 
 
 size : Int

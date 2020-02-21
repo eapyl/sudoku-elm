@@ -51,4 +51,5 @@ type alias Model =
     , solution : Board
     , triedValues : List ( Position, CValue )
     , generationStatus : Maybe String
+    , showModal : Bool
     }
