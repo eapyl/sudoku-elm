@@ -1,4 +1,14 @@
-module Styles exposing (btnCss, divBottomCss, divInBtnCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
+module Styles exposing
+    ( btnCss
+    , btnRightCss
+    , divBottomCss
+    , divInBtnCss
+    , divInDivCss
+    , divInTdCss
+    , mainDivCss
+    , tableCss
+    , tdCss
+    )
 
 import Css
     exposing
@@ -8,11 +18,16 @@ import Css
         , absolute
         , after
         , auto
+        , backgroundColor
         , block
         , border3
         , bottom
         , display
+        , float
         , fontSize
+        , height
+        , hex
+        , large
         , left
         , margin2
         , marginTop
@@ -62,6 +77,16 @@ centeredDiv leftValue topValue size =
         ]
 
 
+grayBox : Style
+grayBox =
+    backgroundColor (hex "BEBEBE")
+
+
+whiteBox : Style
+whiteBox =
+    backgroundColor (hex "FFFFFF")
+
+
 mainDivCss : Attribute msg
 mainDivCss =
     css
@@ -70,8 +95,8 @@ mainDivCss =
         ]
 
 
-tdCss : Attribute msg
-tdCss =
+tdCss : Bool -> Attribute msg
+tdCss gray =
     css
         [ borderStyle
         , width (pct 10)
@@ -81,6 +106,11 @@ tdCss =
             , display block
             , marginTop (pct 100)
             ]
+        , if gray then
+            grayBox
+
+          else
+            whiteBox
         ]
 
 
@@ -115,14 +145,21 @@ divBottomCss =
     css [ marginTop (px 10) ]
 
 
+btnStyle : List Style
+btnStyle =
+    [ height (px 50)
+    , width (px 80)
+    , fontSize large
+    ]
+
+
 btnCss : Attribute msg
 btnCss =
     css
-        [ width (pct 10)
-        , position relative
-        , after
-            [ property "content" "\"\""
-            , display block
-            , marginTop (pct 100)
-            ]
-        ]
+        btnStyle
+
+
+btnRightCss : Attribute msg
+btnRightCss =
+    css
+        (float right :: btnStyle)

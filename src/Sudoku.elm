@@ -1,5 +1,6 @@
 module Sudoku exposing
-    ( allValues
+    ( allIndexes
+    , allValues
     , boardSize
     , emptyModel
     , fromInt
@@ -7,6 +8,7 @@ module Sudoku exposing
     , getFreeCells
     , getUsedValues
     , hasAtLeastOneSolution
+    , indexToInt
     , rawIndexToPossiblePosition
     , size
     , tryToRemoveValuesFromBoard
@@ -333,3 +335,8 @@ getFreeCells board =
 allValues : List CValue
 allValues =
     [ One, Two, Three, Four, Five, Six, Seven, Eight, Nine ]
+
+
+allIndexes : List Index
+allIndexes =
+    [ First, Second, Third, Fourth, Fifth, Sixth, Seventh, Eighth, Ninth ]
