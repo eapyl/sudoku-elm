@@ -1,7 +1,12 @@
 self.addEventListener('install', function(e) {
   e.waitUntil(
     caches.open('sudoku').then(function(cache) {
-      return cache.addAll(['/', '/manifest.json', '/elm.js']);
+      return cache.addAll([
+        './',
+        './manifest.json',
+        './elm.js',
+        './index.html'
+      ]);
     })
   );
 });
