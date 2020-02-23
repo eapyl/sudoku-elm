@@ -4,13 +4,8 @@
   "decription": "Sudoku app using Elm",
   "icons": [
     {
-      "src": "Icon-196.png",
-      "sizes": "196x196",
-      "type": "image/png"
-    },
-    {
-      "src": "Icon-512.png",
-      "sizes": "512x512",
+      "src": "Icon-192.png",
+      "sizes": "192x192",
       "type": "image/png"
     }
   ],
