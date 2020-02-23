@@ -3,23 +3,24 @@ module Sudoku exposing
     , allValues
     , boardSize
     , emptyModel
-    , fromInt
     , getCValue
+    , getCell
     , getFreeCells
     , getUsedValues
     , hasAtLeastOneSolution
-    , indexToInt
+    , isValidValue
     , rawIndexToPossiblePosition
     , size
     , tryToRemoveValuesFromBoard
     )
 
-import Model exposing (Board, CValue(..), Cell, Index(..), Model, Position)
+import Convert exposing (fromInt, indexToInt)
+import Model exposing (Board, CValue(..), Cell, Index(..), Level(..), Model, Position)
 
 
 emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] (Just "Generating") False
+    Model initEmptyBoard initEmptyBoard [] Nothing [] Easy
 
 
 size : Int
@@ -30,40 +31,6 @@ size =
 boardSize : Int
 boardSize =
     size * size
-
-
-fromInt : Int -> Maybe Index
-fromInt index =
-    case index of
-        0 ->
-            Just First
-
-        1 ->
-            Just Second
-
-        2 ->
-            Just Third
-
-        3 ->
-            Just Fourth
-
-        4 ->
-            Just Fifth
-
-        5 ->
-            Just Sixth
-
-        6 ->
-            Just Seventh
-
-        7 ->
-            Just Eighth
-
-        8 ->
-            Just Ninth
-
-        _ ->
-            Nothing
 
 
 getCValue : Board -> Position -> CValue
@@ -80,6 +47,20 @@ getCValue board ( row, column ) =
         |> List.head
         |> Maybe.map (\c -> c.value)
         |> Maybe.withDefault Empty
+
+
+getCell : Board -> Position -> Maybe Cell
+getCell board ( row, column ) =
+    board
+        |> List.filter
+            (\c ->
+                let
+                    ( r, col ) =
+                        c.pos
+                in
+                r == row && col == column
+            )
+        |> List.head
 
 
 type SolutionCount
@@ -228,12 +209,26 @@ getBoxIndex ( row, col ) =
 
 
 getAllNonEmptyValuesInBox : Board -> Position -> List CValue
-getAllNonEmptyValuesInBox board pos =
+getAllNonEmptyValuesInBox =
+    getAllNonEmptyValuesInBoxWithSkip Nothing
+
+
+getAllNonEmptyValuesInBoxWithSkip : Maybe Position -> Board -> Position -> List CValue
+getAllNonEmptyValuesInBoxWithSkip skipCell board pos =
     board
         |> List.filter (\c -> c.value /= Empty)
         |> List.filter
             (\c ->
                 getBoxIndex pos == getBoxIndex c.pos
+            )
+        |> List.filter
+            (\c ->
+                case skipCell of
+                    Just v ->
+                        v /= c.pos
+
+                    Nothing ->
+                        True
             )
         |> List.map (\c -> c.value)
 
@@ -249,7 +244,12 @@ getAllNonEmptyValuesInColumn =
 
 
 getAllNonEmptyValues : Bool -> Board -> Index -> List CValue
-getAllNonEmptyValues isRow board index =
+getAllNonEmptyValues =
+    getAllNonEmptyValuesWithSkip Nothing
+
+
+getAllNonEmptyValuesWithSkip : Maybe Index -> Bool -> Board -> Index -> List CValue
+getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
     board
         |> List.filter (\c -> c.value /= Empty)
         |> List.filter
@@ -264,38 +264,24 @@ getAllNonEmptyValues isRow board index =
                 else
                     col == index
             )
+        |> List.filter
+            (\c ->
+                let
+                    ( row, col ) =
+                        c.pos
+                in
+                case skipRowOrCol of
+                    Just v ->
+                        if isRow then
+                            v /= col
+
+                        else
+                            v /= row
+
+                    Nothing ->
+                        True
+            )
         |> List.map (\c -> c.value)
-
-
-indexToInt : Index -> Int
-indexToInt index =
-    case index of
-        First ->
-            0
-
-        Second ->
-            1
-
-        Third ->
-            2
-
-        Fourth ->
-            3
-
-        Fifth ->
-            4
-
-        Sixth ->
-            5
-
-        Seventh ->
-            6
-
-        Eighth ->
-            7
-
-        Ninth ->
-            8
 
 
 rawIndexToPossiblePosition : Int -> ( Maybe Index, Maybe Index )
@@ -340,3 +326,14 @@ allValues =
 allIndexes : List Index
 allIndexes =
     [ First, Second, Third, Fourth, Fifth, Sixth, Seventh, Eighth, Ninth ]
+
+
+isValidValue : Board -> Cell -> Bool
+isValidValue board cell =
+    let
+        ( row, col ) =
+            cell.pos
+    in
+    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cell.value |> not)
+        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cell.value |> not)
+        && (getAllNonEmptyValuesInBoxWithSkip (Just cell.pos) board cell.pos |> List.member cell.value |> not)

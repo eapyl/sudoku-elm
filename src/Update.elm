@@ -1,6 +1,7 @@
 module Update exposing (initCommand, update)
 
-import Model exposing (BoxGroup(..), CValue, Cell, Model, Position)
+import Convert exposing (fromInt)
+import Model exposing (BoxGroup(..), CValue(..), Cell, Level(..), Model, Position)
 import Msg exposing (Msg(..))
 import Random
 import Random.List
@@ -8,7 +9,7 @@ import Sudoku
     exposing
         ( allValues
         , boardSize
-        , fromInt
+        , emptyModel
         , getFreeCells
         , getUsedValues
         , hasAtLeastOneSolution
@@ -61,14 +62,9 @@ update msg model =
                         ( model.board, freeCells )
             in
             ( { model
-                | board = updatedModel
+                | solution = updatedModel
+                , board = updatedModel
                 , triedValues = ( cellPos, randomValue ) :: model.triedValues
-                , generationStatus =
-                    if List.isEmpty remainingCells then
-                        Nothing
-
-                    else
-                        Just <| (((54 - List.length freeCells) * 100 // 54) |> String.fromInt) ++ "%"
               }
             , generateBoard remainingCells
             )
@@ -163,7 +159,7 @@ update msg model =
                                         c
                             )
             in
-            ( { model | board = updatedBoard, generationStatus = Just "Initial board are generated" }
+            ( { model | solution = updatedBoard, board = updatedBoard }
             , case nextBoxPosition of
                 Just ( B, B ) ->
                     Random.generate (ValuesForBoxGenerated ( B, B ) (Just ( C, C ))) valueCompleteGenerator
@@ -176,9 +172,56 @@ update msg model =
             )
 
         RemoveValueFromBoard positionsToClean ->
-            ( { model | board = tryToRemoveValuesFromBoard (List.take 60 positionsToClean) model.board }
+            let
+                mapLevelToInt =
+                    case model.level of
+                        Hard ->
+                            60
+
+                        Normal ->
+                            40
+
+                        Easy ->
+                            20
+
+                boardWithFreeCells =
+                    tryToRemoveValuesFromBoard (List.take mapLevelToInt positionsToClean) model.board
+
+                freeCellsPositions =
+                    boardWithFreeCells
+                        |> List.filter (\x -> x.value == Empty)
+                        |> List.map (\x -> x.pos)
+            in
+            ( { model
+                | board = boardWithFreeCells
+                , initialFreeCells = freeCellsPositions
+              }
             , Cmd.none
             )
+
+        ShowModal pos ->
+            ( { model | selectedCell = Just pos }, Cmd.none )
+
+        CloseModal ->
+            ( { model | selectedCell = Nothing }, Cmd.none )
+
+        SelectedCValue pos cvalue ->
+            let
+                updatedBoard =
+                    model.board
+                        |> List.map
+                            (\c ->
+                                if c.pos == pos then
+                                    { c | value = cvalue }
+
+                                else
+                                    c
+                            )
+            in
+            ( { model | selectedCell = Nothing, board = updatedBoard }, Cmd.none )
+
+        ChangeLevel newLevel ->
+            ( { emptyModel | level = newLevel }, initCommand )
 
 
 generateBoard : List Cell -> Cmd Msg

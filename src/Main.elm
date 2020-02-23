@@ -1,7 +1,6 @@
 module Main exposing (main)
 
 import Browser
-import Html.Styled exposing (toUnstyled)
 import Json.Decode exposing (Value)
 import Model exposing (BoxGroup(..), CValue(..), Index(..), Model)
 import Msg exposing (Msg(..))
@@ -22,7 +21,7 @@ main =
         , view =
             \model ->
                 { title = "Sudoku"
-                , body = List.map toUnstyled <| view model
+                , body = view model
                 }
         , subscriptions = \_ -> Sub.none
         }

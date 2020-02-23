@@ -1,4 +1,4 @@
-module Model exposing (Board, BoxGroup(..), CValue(..), Cell, Index(..), Model, Position)
+module Model exposing (Board, BoxGroup(..), CValue(..), Cell, Index(..), Level(..), Model, Position)
 
 
 type BoxGroup
@@ -46,10 +46,17 @@ type alias Board =
     List Cell
 
 
+type Level
+    = Easy
+    | Normal
+    | Hard
+
+
 type alias Model =
     { board : Board
     , solution : Board
     , triedValues : List ( Position, CValue )
-    , generationStatus : Maybe String
-    , showModal : Bool
+    , selectedCell : Maybe Position
+    , initialFreeCells : List Position
+    , level : Level
     }

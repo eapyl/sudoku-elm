@@ -1,59 +1,131 @@
 module View exposing (view)
 
-import Html.Styled exposing (Html, button, div, td, text, tr)
-import Html.Styled.Events exposing (onClick)
-import Model exposing (Board, CValue(..), Index(..), Model)
-import Msg exposing (Msg)
-import Styles exposing (btnCss, btnRightCss, divBottomCss, divInDivCss, divInTdCss, mainDivCss, tableCss, tdCss)
-import Sudoku exposing (allIndexes, getCValue, indexToInt)
+import Color exposing (..)
+import Convert exposing (fromInt, indexToInt, toString)
+import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input
+import Html exposing (Html)
+import Model exposing (Board, CValue(..), Cell, Index(..), Level(..), Model, Position)
+import Msg exposing (Msg(..))
+import Sudoku exposing (allIndexes, getCell, isValidValue)
 
 
 view : Model -> List (Html Msg)
 view model =
-    [ div [ mainDivCss ]
-        (mainView model)
+    [ layoutWith { options = [ focusStyle <| FocusStyle Nothing Nothing Nothing ] } [] (mainView model)
     ]
 
 
-modalWindow : List (Html Msg)
-modalWindow =
-    [ Html.Styled.table []
-        [ tr
-            []
-            [ td [] [ text "sample " ]
-            ]
-        ]
-    ]
-
-
-mainView : Model -> List (Html Msg)
+mainView : Model -> Element Msg
 mainView model =
     let
         currentBoard =
             model.board
+
+        width450 =
+            width (fill |> maximum 450)
+
+        height450 =
+            height (fill |> maximum 450)
     in
-    case model.generationStatus of
-        Just s ->
-            [ text s ]
-
-        Nothing ->
-            [ Html.Styled.table [ tableCss ]
-                (allIndexes
-                    |> List.map
-                        (\v -> tr [] (generateRow currentBoard v))
-                )
-            , div [ divBottomCss ]
-                [ button [ btnCss ] [ text "Easy" ]
-                , button [ btnCss ] [ text "Medium" ]
-                , button [ btnCss ] [ text "Hard" ]
-                , button [ btnRightCss ] [ text "Help" ]
-                , button [ btnRightCss ] [ text "Solution" ]
+    column
+        [ centerX
+        , width450
+        , height450
+        ]
+        [ column
+            (roundedBorder
+                [ width450
+                , height450
                 ]
+            )
+            [ if model.board == model.solution then
+                el [ centerX, centerY ]
+                    (text "Solved!")
+
+              else
+                column
+                    [ width fill, height fill ]
+                    (allIndexes
+                        |> List.map
+                            (\v -> generateRow model.initialFreeCells model.selectedCell currentBoard v)
+                    )
             ]
+        , row [ spacing 5, paddingXY 0 5, width fill ]
+            [ createButton Easy
+            , createButton Normal
+            , createButton Hard
+            ]
+        ]
 
 
-generateTd : ( ( Index, Index ), CValue ) -> Html msg
-generateTd ( ( row, col ), cellValue ) =
+mixin : List (Attribute msg) -> List (Attribute msg) -> List (Attribute msg)
+mixin base new =
+    List.append base new
+
+
+border : List (Attribute msg) -> List (Attribute msg)
+border =
+    mixin
+        [ Border.solid
+        , Border.color (rgb 0 0 0)
+        , Border.width 1
+        ]
+
+
+roundedBorder : List (Attribute msg) -> List (Attribute msg)
+roundedBorder =
+    mixin
+        (border
+            [ Border.rounded 3
+            ]
+        )
+
+
+createButton : Level -> Element Msg
+createButton level =
+    let
+        txt =
+            case level of
+                Easy ->
+                    "Easy"
+
+                Normal ->
+                    "Normal"
+
+                Hard ->
+                    "Hard"
+    in
+    Input.button
+        (roundedBorder
+            [ Background.color gray500
+            , height fill
+            ]
+        )
+        { onPress = Just <| ChangeLevel level
+        , label = el [ paddingXY 3 10 ] (text txt)
+        }
+
+
+createRightButton : String -> Element msg
+createRightButton labelTxt =
+    Input.button
+        (roundedBorder
+            [ height fill
+            , Background.color gray500
+            , alignRight
+            ]
+        )
+        { onPress = Nothing
+        , label = el [ padding 3 ] (text labelTxt)
+        }
+
+
+modalPosition : Position -> Maybe ( Position, Position )
+modalPosition ( row, col ) =
     let
         intRow =
             indexToInt row
@@ -61,55 +133,286 @@ generateTd ( ( row, col ), cellValue ) =
         intCol =
             indexToInt col
 
-        isGray =
-            let
-                evenRow =
-                    intRow // 3 == 1
+        rightSide =
+            intCol // 2 >= 3
 
-                evenCol =
-                    intCol // 3 == 1
-            in
-            (not evenRow && evenCol) || (evenRow && not evenCol)
+        bottomSide =
+            intRow // 2 >= 3
+
+        leftTopCorner =
+            case ( rightSide, bottomSide ) of
+                ( True, True ) ->
+                    ( fromInt (intRow - 3), fromInt (intCol - 3) )
+
+                ( True, False ) ->
+                    ( fromInt intRow, fromInt (intCol - 3) )
+
+                ( False, True ) ->
+                    ( fromInt (intRow - 3), fromInt (intCol + 1) )
+
+                ( False, False ) ->
+                    ( fromInt intRow, fromInt (intCol + 1) )
+
+        rightBotCorner =
+            case ( rightSide, bottomSide ) of
+                ( True, True ) ->
+                    ( fromInt intRow, fromInt (intCol - 1) )
+
+                ( True, False ) ->
+                    ( fromInt (intRow + 3), fromInt (intCol - 1) )
+
+                ( False, True ) ->
+                    ( fromInt intRow, fromInt (intCol + 3) )
+
+                ( False, False ) ->
+                    ( fromInt (intRow + 3), fromInt (intCol + 3) )
     in
-    td [ tdCss isGray ] [ div [ divInTdCss ] [ div [ divInDivCss ] [ text (toString cellValue) ] ] ]
+    case ( leftTopCorner, rightBotCorner ) of
+        ( ( Just r1, Just c1 ), ( Just r2, Just c2 ) ) ->
+            Just ( ( r1, c1 ), ( r2, c2 ) )
+
+        _ ->
+            Nothing
 
 
-generateRow : Board -> Index -> List (Html msg)
-generateRow board index =
-    allIndexes
-        |> List.map (\col -> ( ( index, col ), getCValue board ( index, col ) ))
-        |> List.map generateTd
+type ModalCommand
+    = SelCValue CValue
+    | Close
+    | NoModal
 
 
-toString : CValue -> String
-toString value =
-    case value of
-        Empty ->
-            ""
+valueInModal : Position -> ( Position, Position ) -> Maybe ModalCommand
+valueInModal ( r, c ) ( ( r1, c1 ), _ ) =
+    let
+        intR =
+            indexToInt r
 
-        One ->
-            "1"
+        intC =
+            indexToInt c
 
-        Two ->
-            "2"
+        intR1 =
+            indexToInt r1
 
-        Three ->
-            "3"
+        intC1 =
+            indexToInt c1
+    in
+    if intR == intR1 then
+        if intC == intC1 then
+            Just <| SelCValue One
 
-        Four ->
-            "4"
+        else if intC == intC1 + 1 then
+            Just <| SelCValue Two
 
-        Five ->
-            "5"
+        else if intC == intC1 + 2 then
+            Just <| SelCValue Three
 
-        Six ->
-            "6"
+        else
+            Nothing
 
-        Seven ->
-            "7"
+    else if intR == intR1 + 1 then
+        if intC == intC1 then
+            Just <| SelCValue Four
 
-        Eight ->
-            "8"
+        else if intC == intC1 + 1 then
+            Just <| SelCValue Five
 
-        Nine ->
-            "9"
+        else if intC == intC1 + 2 then
+            Just <| SelCValue Six
+
+        else
+            Nothing
+
+    else if intR == intR1 + 2 then
+        if intC == intC1 then
+            Just <| SelCValue Seven
+
+        else if intC == intC1 + 1 then
+            Just <| SelCValue Eight
+
+        else if intC == intC1 + 2 then
+            Just <| SelCValue Nine
+
+        else
+            Nothing
+
+    else if intR == intR1 + 3 then
+        if intC == intC1 then
+            Just <| SelCValue Empty
+
+        else if intC == intC1 + 1 then
+            Just <| NoModal
+
+        else if intC == intC1 + 2 then
+            Just <| Close
+
+        else
+            Nothing
+
+    else
+        Nothing
+
+
+generateRow : List Position -> Maybe Position -> Board -> Index -> Element Msg
+generateRow initialFreeCells selected board index =
+    row
+        [ width fill
+        , height fill
+        ]
+        (allIndexes
+            |> List.filterMap (\col -> getCell board ( index, col ))
+            |> List.map
+                (\cell ->
+                    let
+                        ( row, col ) =
+                            cell.pos
+
+                        isGray =
+                            let
+                                evenRow =
+                                    indexToInt row // 3 == 1
+
+                                evenCol =
+                                    indexToInt col // 3 == 1
+                            in
+                            (not evenRow && evenCol) || (evenRow && not evenCol)
+
+                        modalCommand =
+                            Maybe.andThen modalPosition selected |> Maybe.andThen (valueInModal cell.pos)
+
+                        hasModal =
+                            List.member cell.pos initialFreeCells
+
+                        modalColor =
+                            if hasModal then
+                                if isValidValue board cell then
+                                    Just green600
+
+                                else
+                                    Just red600
+
+                            else
+                                Nothing
+                    in
+                    case ( modalCommand, selected ) of
+                        ( Just command, Just posToWrite ) ->
+                            modalCell posToWrite command
+
+                        _ ->
+                            if isGray then
+                                grayCell modalColor cell
+
+                            else
+                                normalCell modalColor cell
+                )
+        )
+
+
+fillAttr : List (Attribute Msg)
+fillAttr =
+    border
+        [ width fill
+        , height fill
+        ]
+
+
+boardCell : Color -> Maybe Color -> Cell -> Element Msg
+boardCell color modalColor cell =
+    let
+        baseAttr =
+            mixin fillAttr
+                [ Background.color <| color ]
+
+        innerElement =
+            el
+                [ Font.center
+                , centerY
+                , centerX
+                , Font.size 30
+                ]
+                (text <| toString cell.value)
+    in
+    case modalColor of
+        Just mC ->
+            Input.button
+                (mixin baseAttr
+                    [ Font.italic
+                    , Font.color mC
+                    ]
+                )
+                { onPress = Just <| ShowModal cell.pos
+                , label = innerElement
+                }
+
+        Nothing ->
+            el
+                baseAttr
+                innerElement
+
+
+grayCell : Maybe Color -> Cell -> Element Msg
+grayCell =
+    boardCell gray400
+
+
+normalCell : Maybe Color -> Cell -> Element Msg
+normalCell =
+    boardCell white
+
+
+modalStyle : List (Attribute Msg)
+modalStyle =
+    mixin fillAttr
+        [ Background.color gray200
+        , Border.color gray200
+        ]
+
+
+modalCell : Position -> ModalCommand -> Element Msg
+modalCell pos command =
+    let
+        txt =
+            case command of
+                SelCValue Empty ->
+                    "∅"
+
+                SelCValue cvalue ->
+                    toString cvalue
+
+                NoModal ->
+                    ""
+
+                Close ->
+                    "←"
+
+        cmn =
+            case command of
+                Close ->
+                    Just CloseModal
+
+                SelCValue cvalue ->
+                    Just <| SelectedCValue pos cvalue
+
+                _ ->
+                    Nothing
+
+        innerElement =
+            el
+                [ Font.center
+                , centerY
+                , centerX
+                , Font.size 30
+                ]
+                (text txt)
+    in
+    case command of
+        NoModal ->
+            el
+                modalStyle
+                innerElement
+
+        _ ->
+            Input.button
+                modalStyle
+                { onPress = cmn
+                , label = innerElement
+                }
