@@ -42,17 +42,23 @@ mainView model =
                 , height450
                 ]
             )
-            [ if model.board == model.solution then
-                el [ centerX, centerY ]
-                    (text "Solved!")
+            [ case model.message of
+                Just txt ->
+                    el [ centerX, centerY ]
+                        (text txt)
 
-              else
-                column
-                    [ width fill, height fill ]
-                    (allIndexes
-                        |> List.map
-                            (\v -> generateRow model.initialFreeCells model.selectedCell currentBoard v)
-                    )
+                _ ->
+                    if model.generated then
+                        column
+                            [ width fill, height fill ]
+                            (allIndexes
+                                |> List.map
+                                    (\v -> generateRow model.initialFreeCells model.selectedCell currentBoard v)
+                            )
+
+                    else
+                        el [ centerX, centerY ]
+                            (text "Finalizing")
             ]
         , row [ spacing 5, paddingXY 0 5, width fill ]
             [ createButton Easy

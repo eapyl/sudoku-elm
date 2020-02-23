@@ -59,4 +59,6 @@ type alias Model =
     , selectedCell : Maybe Position
     , initialFreeCells : List Position
     , level : Level
+    , message : Maybe String
+    , generated : Bool
     }

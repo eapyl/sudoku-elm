@@ -13,3 +13,4 @@ type Msg
     | CloseModal
     | SelectedCValue Position CValue
     | ChangeLevel Level
+    | DelayCommand (List Cell)

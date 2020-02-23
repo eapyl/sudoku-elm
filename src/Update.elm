@@ -3,6 +3,7 @@ module Update exposing (initCommand, update)
 import Convert exposing (fromInt)
 import Model exposing (BoxGroup(..), CValue(..), Cell, Level(..), Model, Position)
 import Msg exposing (Msg(..))
+import Process
 import Random
 import Random.List
 import Sudoku
@@ -16,6 +17,13 @@ import Sudoku
         , rawIndexToPossiblePosition
         , tryToRemoveValuesFromBoard
         )
+import Task
+
+
+sendDelayed : (a -> msg) -> a -> Cmd msg
+sendDelayed msg a =
+    Process.sleep 20
+        |> Task.perform (\_ -> msg a)
 
 
 initCommand : Cmd Msg
@@ -28,7 +36,7 @@ update msg model =
     case msg of
         GenerateBoard ->
             ( model
-            , generateBoard <| getFreeCells model.board
+            , sendDelayed DelayCommand <| getFreeCells model.board
             )
 
         RandomValueGenerated freeCells cellPos randomValue ->
@@ -65,8 +73,14 @@ update msg model =
                 | solution = updatedModel
                 , board = updatedModel
                 , triedValues = ( cellPos, randomValue ) :: model.triedValues
+                , message =
+                    if List.isEmpty remainingCells then
+                        Nothing
+
+                    else
+                        Just <| (((54 - List.length freeCells) * 100 // 54) |> String.fromInt) ++ "%"
               }
-            , generateBoard remainingCells
+            , sendDelayed DelayCommand remainingCells
             )
 
         FreeCellSelected freeCells cell ->
@@ -195,6 +209,7 @@ update msg model =
             ( { model
                 | board = boardWithFreeCells
                 , initialFreeCells = freeCellsPositions
+                , generated = True
               }
             , Cmd.none
             )
@@ -218,10 +233,25 @@ update msg model =
                                     c
                             )
             in
-            ( { model | selectedCell = Nothing, board = updatedBoard }, Cmd.none )
+            if model.solution == updatedBoard then
+                ( { model
+                    | selectedCell = Nothing
+                    , board = updatedBoard
+                    , message = Just "Solved!"
+                  }
+                , Cmd.none
+                )
+
+            else
+                ( { model | selectedCell = Nothing, board = updatedBoard }, Cmd.none )
 
         ChangeLevel newLevel ->
-            ( { emptyModel | level = newLevel }, initCommand )
+            ( { emptyModel | level = newLevel, message = Just "Start generating board" }, initCommand )
+
+        DelayCommand remainingCells ->
+            ( model
+            , generateBoard remainingCells
+            )
 
 
 generateBoard : List Cell -> Cmd Msg

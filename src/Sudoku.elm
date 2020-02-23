@@ -20,7 +20,7 @@ import Model exposing (Board, CValue(..), Cell, Index(..), Level(..), Model, Pos
 
 emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] Nothing [] Easy
+    Model initEmptyBoard initEmptyBoard [] Nothing [] Easy Nothing False
 
 
 size : Int
