@@ -41,7 +41,7 @@ toString : CValue -> String
 toString value =
     case value of
         Empty ->
-            ""
+            " "
 
         One ->
             "1"

@@ -116,20 +116,6 @@ createButton level =
         }
 
 
-createRightButton : String -> Element msg
-createRightButton labelTxt =
-    Input.button
-        (roundedBorder
-            [ height fill
-            , Background.color gray500
-            , alignRight
-            ]
-        )
-        { onPress = Nothing
-        , label = el [ padding 3 ] (text labelTxt)
-        }
-
-
 modalPosition : Position -> Maybe ( Position, Position )
 modalPosition ( row, col ) =
     let
