@@ -12,8 +12,6 @@
     <noscript>
       <span>This website is using Elm, so it needs js enabled</span>
     </noscript>
-    <!-- <script src="//cdn.jsdelivr.net/npm/pouchdb@7.1.1/dist/pouchdb.min.js"></script>
-    <script src="./pouchdb.js"></script> -->
     <script>
       var app = Elm.Main.init();
 
@@ -24,29 +22,6 @@
             console.log('Service Worker Registered');
           });
       }
-
-      // window.addEventListener(
-      //   'online',
-      //   function(e) {
-      //     // sync data with server
-      //     app.ports.online.send(true);
-      //   },
-      //   false
-      // );
-
-      // window.addEventListener(
-      //   'offline',
-      //   function(e) {
-      //     // save data locally
-      //     app.ports.online.send(false);
-      //   },
-      //   false
-      // );
-
-      // app.ports.pouchDB.subscribe(function(capture) {
-      //   console.log('capture offline', capture);
-      //   saveCapture(capture);
-      // });
     </script>
   </body>
 </html>
