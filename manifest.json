@@ -9,7 +9,7 @@
       "type": "image/png"
     }
   ],
-  "start_url": "/",
+  "start_url": "/sudoku-elm/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#fff"
