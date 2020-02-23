@@ -2,8 +2,20 @@
   "short_name": "Sudoku",
   "name": "Sudoku app",
   "decription": "Sudoku app using Elm",
-  "icons": [],
+  "icons": [
+    {
+      "src": "Icon-196.png",
+      "sizes": "196x196",
+      "type": "image/png"
+    },
+    {
+      "src": "Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "theme_color": "#fff"
 }
