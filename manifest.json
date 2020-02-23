@@ -1,0 +1,9 @@
+{
+  "short_name": "Sudoku",
+  "name": "Sudoku app",
+  "decription": "Sudoku app using Elm",
+  "icons": [],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff"
+}
