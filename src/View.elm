@@ -1,16 +1,29 @@
 module View exposing (view)
 
 import Color exposing (..)
-import Convert exposing (fromInt, indexToInt, toString)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
-import Model exposing (Board, CValue(..), Cell, Index(..), Level(..), Model, Position)
+import Model exposing (Level(..), Model)
 import Msg exposing (Msg(..))
-import Sudoku exposing (allIndexes, getCell, isValidValue)
+import Sudoku
+    exposing
+        ( Board
+        , CValue(..)
+        , Cell
+        , Index(..)
+        , Position
+        , allIndexes
+        , freeCellPositionsOnBoard
+        , fromInt
+        , getCell
+        , indexToInt
+        , isValidValue
+        , toString
+        )
 
 
 view : Model -> List (Html Msg)
@@ -23,7 +36,7 @@ mainView : Model -> Element Msg
 mainView model =
     let
         currentBoard =
-            model.board
+            model.sudoku.board
 
         width450 =
             width (fill |> maximum 450)
@@ -42,23 +55,18 @@ mainView model =
                 , height450
                 ]
             )
-            [ case model.message of
+            [ case model.sudoku.status of
                 Just txt ->
                     el [ centerX, centerY ]
                         (text txt)
 
                 _ ->
-                    if model.generated then
-                        column
-                            [ width fill, height fill ]
-                            (allIndexes
-                                |> List.map
-                                    (\v -> generateRow model.initialFreeCells model.selectedCell currentBoard v)
-                            )
-
-                    else
-                        el [ centerX, centerY ]
-                            (text "Finalizing")
+                    column
+                        [ width fill, height fill ]
+                        (allIndexes
+                            |> List.map
+                                (\v -> generateRow (freeCellPositionsOnBoard model.sudoku) model.selectedCell currentBoard v)
+                        )
             ]
         , row [ spacing 5, paddingXY 0 5, width fill ]
             [ createButton Easy

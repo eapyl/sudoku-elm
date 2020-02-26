@@ -2,10 +2,10 @@ module Main exposing (main)
 
 import Browser
 import Json.Decode exposing (Value)
-import Model exposing (BoxGroup(..), CValue(..), Index(..), Model)
+import Model exposing (Model, emptyModel)
 import Msg exposing (Msg(..))
-import Sudoku exposing (emptyModel)
-import Update exposing (initCommand, update)
+import Sudoku exposing (createBoard)
+import Update exposing (update)
 import View exposing (view)
 
 
@@ -15,7 +15,7 @@ main =
         { init =
             \_ ->
                 ( emptyModel
-                , initCommand
+                , Cmd.map SudokuCommand createBoard
                 )
         , update = update
         , view =

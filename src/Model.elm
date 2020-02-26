@@ -1,49 +1,11 @@
-module Model exposing (Board, BoxGroup(..), CValue(..), Cell, Index(..), Level(..), Model, Position)
+module Model exposing (Level(..), Model, emptyModel)
+
+import Sudoku exposing (Model, Position, emptyModel)
 
 
-type BoxGroup
-    = A
-    | B
-    | C
-
-
-type CValue
-    = Empty
-    | One
-    | Two
-    | Three
-    | Four
-    | Five
-    | Six
-    | Seven
-    | Eight
-    | Nine
-
-
-type alias Position =
-    ( Index, Index )
-
-
-type alias Cell =
-    { pos : Position
-    , value : CValue
-    }
-
-
-type Index
-    = First
-    | Second
-    | Third
-    | Fourth
-    | Fifth
-    | Sixth
-    | Seventh
-    | Eighth
-    | Ninth
-
-
-type alias Board =
-    List Cell
+emptyModel : Model
+emptyModel =
+    Model Sudoku.emptyModel Nothing Easy
 
 
 type Level
@@ -53,12 +15,7 @@ type Level
 
 
 type alias Model =
-    { board : Board
-    , solution : Board
-    , triedValues : List ( Position, CValue )
+    { sudoku : Sudoku.Model
     , selectedCell : Maybe Position
-    , initialFreeCells : List Position
     , level : Level
-    , message : Maybe String
-    , generated : Bool
     }

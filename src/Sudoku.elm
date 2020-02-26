@@ -1,26 +1,342 @@
 module Sudoku exposing
-    ( allIndexes
+    ( Board
+    , CValue(..)
+    , Cell
+    , Index
+    , Model
+    , Msg
+    , Position
+    , allIndexes
     , allValues
     , boardSize
+    , createBoard
     , emptyModel
+    , freeCellPositionsOnBoard
+    , fromInt
     , getCValue
     , getCell
     , getFreeCells
     , getUsedValues
     , hasAtLeastOneSolution
+    , indexToInt
+    , initEmptyBoard
     , isValidValue
     , rawIndexToPossiblePosition
     , size
+    , toString
     , tryToRemoveValuesFromBoard
+    , update
+    , valueCompleteGenerator
     )
 
-import Convert exposing (fromInt, indexToInt)
-import Model exposing (Board, CValue(..), Cell, Index(..), Level(..), Model, Position)
+import Process
+import Random
+import Random.List
+import Task
 
 
-emptyModel : Model
+type BoxGroup
+    = A
+    | B
+    | C
+
+
+type CValue
+    = Empty
+    | One
+    | Two
+    | Three
+    | Four
+    | Five
+    | Six
+    | Seven
+    | Eight
+    | Nine
+
+
+type alias Position =
+    ( Index, Index )
+
+
+type alias Cell =
+    { pos : Position
+    , value : CValue
+    }
+
+
+type Index
+    = First
+    | Second
+    | Third
+    | Fourth
+    | Fifth
+    | Sixth
+    | Seventh
+    | Eighth
+    | Ninth
+
+
+type alias Board =
+    List Cell
+
+
+type alias Model =
+    { board : Board
+    , solution : Board
+    , triedValues : List ( Position, CValue )
+    , status : Maybe String
+    }
+
+
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] Nothing [] Easy Nothing False
+    Model initEmptyBoard initEmptyBoard [] Nothing
+
+
+type Msg
+    = ValuesForBoxGenerated ( BoxGroup, BoxGroup ) (Maybe ( BoxGroup, BoxGroup )) (List CValue)
+    | FreeCellSelected (List Cell) Cell
+    | RemoveValueFromBoard (List Position)
+    | RandomValueGenerated (List Cell) Position CValue
+    | DelayCommand (List Cell)
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        ValuesForBoxGenerated boxPosition nextBoxPosition values ->
+            let
+                getMultiplier ( mainGroup, _ ) =
+                    case mainGroup of
+                        A ->
+                            0
+
+                        B ->
+                            3
+
+                        C ->
+                            6
+
+                updatedValues =
+                    let
+                        multiplier =
+                            getMultiplier boxPosition
+                    in
+                    values
+                        |> List.indexedMap
+                            (\i ->
+                                \value ->
+                                    let
+                                        row =
+                                            (i + 3 * multiplier) // 3 |> fromInt
+
+                                        col =
+                                            (remainderBy 3 i + multiplier) |> fromInt
+                                    in
+                                    case ( row, col ) of
+                                        ( Just r, Just c ) ->
+                                            Just ( ( r, c ), value )
+
+                                        _ ->
+                                            Nothing
+                            )
+
+                updatedBoard =
+                    model.board
+                        |> List.map
+                            (\c ->
+                                let
+                                    searchedValue =
+                                        List.filterMap
+                                            (\i ->
+                                                case i of
+                                                    Just ( pos, value ) ->
+                                                        if c.pos == pos then
+                                                            Just ( pos, value )
+
+                                                        else
+                                                            Nothing
+
+                                                    _ ->
+                                                        Nothing
+                                            )
+                                            updatedValues
+                                            |> List.head
+                                in
+                                case searchedValue of
+                                    Just ( _, value ) ->
+                                        { c | value = value }
+
+                                    Nothing ->
+                                        c
+                            )
+            in
+            ( { model | solution = updatedBoard, board = updatedBoard }
+            , case nextBoxPosition of
+                Just ( B, B ) ->
+                    Random.generate (ValuesForBoxGenerated ( B, B ) (Just ( C, C ))) valueCompleteGenerator
+
+                Just ( C, C ) ->
+                    Random.generate (ValuesForBoxGenerated ( C, C ) Nothing) valueCompleteGenerator
+
+                _ ->
+                    generateBoard <| getFreeCells updatedBoard
+            )
+
+        FreeCellSelected freeCells cell ->
+            let
+                usedValues =
+                    getUsedValues model.board cell.pos
+
+                getPossibleValuesForCell =
+                    allValues
+                        |> List.filter (\a -> List.member a usedValues |> not)
+
+                command =
+                    case getPossibleValuesForCell of
+                        head :: tail ->
+                            Random.generate
+                                (RandomValueGenerated freeCells cell.pos)
+                                (valueGenerator head tail)
+
+                        [] ->
+                            Cmd.none
+            in
+            ( model
+            , command
+            )
+
+        RemoveValueFromBoard positionsToClean ->
+            let
+                mapLevelToInt =
+                    -- case model.level of
+                    --     Hard ->
+                    --         60
+                    --     Normal ->
+                    --         40
+                    --     Easy ->
+                    --         20
+                    40
+
+                boardWithFreeCells =
+                    tryToRemoveValuesFromBoard (List.take mapLevelToInt positionsToClean) model.board
+            in
+            ( { model
+                | board = boardWithFreeCells
+              }
+            , Cmd.none
+            )
+
+        RandomValueGenerated freeCells cellPos randomValue ->
+            let
+                filteredCells =
+                    freeCells
+                        |> List.filter (\c -> c.pos /= cellPos)
+
+                updatedBoard =
+                    model.board
+                        |> List.map
+                            (\c ->
+                                if c.pos == cellPos then
+                                    { c | value = randomValue }
+
+                                else
+                                    c
+                            )
+
+                oneSolution =
+                    hasAtLeastOneSolution updatedBoard filteredCells
+
+                ( updatedModel, remainingCells ) =
+                    if List.member ( cellPos, randomValue ) model.triedValues then
+                        ( model.board, freeCells )
+
+                    else if oneSolution then
+                        ( updatedBoard, filteredCells )
+
+                    else
+                        ( model.board, freeCells )
+            in
+            ( { model
+                | solution = updatedModel
+                , board = updatedModel
+                , triedValues = ( cellPos, randomValue ) :: model.triedValues
+                , status =
+                    if List.isEmpty remainingCells then
+                        Nothing
+
+                    else
+                        Just <| (((54 - List.length freeCells) * 100 // 54) |> String.fromInt) ++ "%"
+              }
+            , sendDelayed DelayCommand remainingCells
+            )
+
+        DelayCommand remainingCells ->
+            ( model
+            , generateBoard remainingCells
+            )
+
+
+freeCellPositionsOnBoard : Model -> List Position
+freeCellPositionsOnBoard model =
+    model.board
+        |> List.filter (\x -> x.value == Empty)
+        |> List.map (\x -> x.pos)
+
+
+sendDelayed : (a -> msg) -> a -> Cmd msg
+sendDelayed msg a =
+    Process.sleep 20
+        |> Task.perform (\_ -> msg a)
+
+
+generateBoard : List Cell -> Cmd Msg
+generateBoard freeCells =
+    case freeCells of
+        head :: tail ->
+            Random.generate (FreeCellSelected freeCells) <| freeCellGenerator head tail
+
+        [] ->
+            Random.generate RemoveValueFromBoard positionCompleteGenerator
+
+
+freeCellGenerator : Cell -> List Cell -> Random.Generator Cell
+freeCellGenerator initialCell otherFreeCells =
+    Random.uniform initialCell otherFreeCells
+
+
+positionCompleteGenerator : Random.Generator (List Position)
+positionCompleteGenerator =
+    List.range 0 (boardSize - 1)
+        |> List.map rawIndexToPossiblePosition
+        |> List.filterMap
+            (\( mr, mc ) ->
+                case ( mr, mc ) of
+                    ( Just r, Just c ) ->
+                        Just ( r, c )
+
+                    _ ->
+                        Nothing
+            )
+        |> Random.List.shuffle
+
+
+valueGenerator : CValue -> List CValue -> Random.Generator CValue
+valueGenerator initial rest =
+    Random.uniform initial rest
+
+
+createBoardCommand =
+    ValuesForBoxGenerated ( A, A ) (Just ( B, B ))
+
+
+createBoard : Cmd Msg
+createBoard =
+    Random.generate createBoardCommand valueCompleteGenerator
+
+
+valueCompleteGenerator : Random.Generator (List CValue)
+valueCompleteGenerator =
+    Random.List.shuffle allValues
 
 
 size : Int
@@ -337,3 +653,102 @@ isValidValue board cell =
     (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cell.value |> not)
         && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cell.value |> not)
         && (getAllNonEmptyValuesInBoxWithSkip (Just cell.pos) board cell.pos |> List.member cell.value |> not)
+
+
+fromInt : Int -> Maybe Index
+fromInt index =
+    case index of
+        0 ->
+            Just First
+
+        1 ->
+            Just Second
+
+        2 ->
+            Just Third
+
+        3 ->
+            Just Fourth
+
+        4 ->
+            Just Fifth
+
+        5 ->
+            Just Sixth
+
+        6 ->
+            Just Seventh
+
+        7 ->
+            Just Eighth
+
+        8 ->
+            Just Ninth
+
+        _ ->
+            Nothing
+
+
+toString : CValue -> String
+toString value =
+    case value of
+        Empty ->
+            " "
+
+        One ->
+            "1"
+
+        Two ->
+            "2"
+
+        Three ->
+            "3"
+
+        Four ->
+            "4"
+
+        Five ->
+            "5"
+
+        Six ->
+            "6"
+
+        Seven ->
+            "7"
+
+        Eight ->
+            "8"
+
+        Nine ->
+            "9"
+
+
+indexToInt : Index -> Int
+indexToInt index =
+    case index of
+        First ->
+            0
+
+        Second ->
+            1
+
+        Third ->
+            2
+
+        Fourth ->
+            3
+
+        Fifth ->
+            4
+
+        Sixth ->
+            5
+
+        Seventh ->
+            6
+
+        Eighth ->
+            7
+
+        Ninth ->
+            8

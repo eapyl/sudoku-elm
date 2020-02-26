@@ -1,16 +1,12 @@
 module Msg exposing (Msg(..))
 
-import Model exposing (BoxGroup, CValue, Cell, Level, Position)
+import Model exposing (Level)
+import Sudoku as Sudoku
 
 
 type Msg
-    = GenerateBoard
-    | FreeCellSelected (List Cell) Cell
-    | RandomValueGenerated (List Cell) Position CValue
-    | ValuesForBoxGenerated ( BoxGroup, BoxGroup ) (Maybe ( BoxGroup, BoxGroup )) (List CValue)
-    | RemoveValueFromBoard (List Position)
-    | ShowModal Position
+    = ShowModal Sudoku.Position
     | CloseModal
-    | SelectedCValue Position CValue
+    | SelectedCValue Sudoku.Position Sudoku.CValue
     | ChangeLevel Level
-    | DelayCommand (List Cell)
+    | SudokuCommand Sudoku.Msg
