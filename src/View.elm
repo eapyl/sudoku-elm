@@ -7,13 +7,14 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
-import Model exposing (Level(..), Model)
+import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Sudoku
     exposing
         ( Board
         , CValue(..)
         , Cell
+        , Complexity(..)
         , Index(..)
         , Position
         , allIndexes
@@ -99,11 +100,11 @@ roundedBorder =
         )
 
 
-createButton : Level -> Element Msg
-createButton level =
+createButton : Complexity -> Element Msg
+createButton complexity =
     let
         txt =
-            case level of
+            case complexity of
                 Easy ->
                     "Easy"
 
@@ -119,7 +120,7 @@ createButton level =
             , height fill
             ]
         )
-        { onPress = Just <| ChangeLevel level
+        { onPress = Just <| ChangeLevel complexity
         , label = el [ paddingXY 3 10 ] (text txt)
         }
 

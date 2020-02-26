@@ -2,6 +2,7 @@ module Sudoku exposing
     ( Board
     , CValue(..)
     , Cell
+    , Complexity(..)
     , Index
     , Model
     , Msg
@@ -80,16 +81,24 @@ type alias Board =
     List Cell
 
 
+type Complexity
+    = Easy
+    | Normal
+    | Hard
+
+
 type alias Model =
     { board : Board
     , solution : Board
     , triedValues : List ( Position, CValue )
+    , complexity : Complexity
     , status : Maybe String
     }
 
 
+emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] Nothing
+    Model initEmptyBoard initEmptyBoard [] Easy Nothing
 
 
 type Msg
@@ -208,14 +217,15 @@ update msg model =
         RemoveValueFromBoard positionsToClean ->
             let
                 mapLevelToInt =
-                    -- case model.level of
-                    --     Hard ->
-                    --         60
-                    --     Normal ->
-                    --         40
-                    --     Easy ->
-                    --         20
-                    40
+                    case model.complexity of
+                        Hard ->
+                            60
+
+                        Normal ->
+                            40
+
+                        Easy ->
+                            20
 
                 boardWithFreeCells =
                     tryToRemoveValuesFromBoard (List.take mapLevelToInt positionsToClean) model.board
@@ -325,6 +335,7 @@ valueGenerator initial rest =
     Random.uniform initial rest
 
 
+createBoardCommand : List CValue -> Msg
 createBoardCommand =
     ValuesForBoxGenerated ( A, A ) (Just ( B, B ))
 

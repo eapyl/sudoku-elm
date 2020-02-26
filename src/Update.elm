@@ -1,6 +1,6 @@
 module Update exposing (update)
 
-import Model exposing (Level(..), Model, emptyModel)
+import Model exposing (Model, emptyModel)
 import Msg exposing (Msg(..))
 import Sudoku
     exposing
@@ -58,11 +58,10 @@ update msg model =
         ChangeLevel newLevel ->
             let
                 updatedSudoku sudoku =
-                    { sudoku | status = Just "Start generating board" }
+                    { sudoku | status = Just "Start generating board", complexity = newLevel }
             in
             ( { emptyModel
-                | level = newLevel
-                , sudoku = updatedSudoku model.sudoku
+                | sudoku = updatedSudoku model.sudoku
               }
             , Cmd.map SudokuCommand createBoard
             )
