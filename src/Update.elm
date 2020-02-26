@@ -40,7 +40,7 @@ update msg model =
         ChangeLevel newLevel ->
             let
                 updatedSudoku =
-                    setComplexity model.sudoku newLevel
+                    setComplexity newLevel
             in
             ( { emptyModel | sudoku = updatedSudoku }
             , Cmd.map SudokuCommand createBoard

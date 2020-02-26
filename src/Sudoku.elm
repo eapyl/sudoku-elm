@@ -232,6 +232,7 @@ update msg model =
             ( { model
                 | board = boardWithFreeCells
                 , freeCells = freeCellsPositions
+                , status = Nothing
               }
             , Cmd.none
             )
@@ -272,7 +273,7 @@ update msg model =
                 , triedValues = ( cellPos, randomValue ) :: model.triedValues
                 , status =
                     if List.isEmpty remainingCells then
-                        Nothing
+                        Just "Finalizing"
 
                     else
                         Just <| (((54 - List.length freeCells) * 100 // 54) |> String.fromInt) ++ "%"
@@ -613,9 +614,9 @@ getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
         |> List.map (\c -> c.value)
 
 
-setComplexity : Model -> Complexity -> Model
-setComplexity model complexity =
-    { model | complexity = complexity }
+setComplexity : Complexity -> Model
+setComplexity complexity =
+    { emptyModel | complexity = complexity }
 
 
 rawIndexToPossiblePosition : Int -> ( Maybe Index, Maybe Index )
