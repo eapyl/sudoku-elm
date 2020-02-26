@@ -1,0 +1,1 @@
+{"short_name":"Sudoku","name":"Sudoku app","decription":"Sudoku app using Elm","icons":[{"src":"Icon-192.24ccbd23.png","sizes":"192x192","type":"image/png"},{"src":"Icon-512.ac07c601.png","sizes":"512x512","type":"image/png"}],"start_url":"/sudoku-elm/","display":"standalone","background_color":"#ffffff","theme_color":"#EDF2F7"}
