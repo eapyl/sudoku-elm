@@ -1,1 +1,0 @@
-{"version":3,"sources":["index.js"],"names":["Elm","Main","init","node","document","querySelector"],"mappings":";;;AAEA,aAFA,IAAA,EAAA,QAAA,kBAEAA,EAAIC,IAAAA,KAAKC,KAAK,CACZC,KAAMC,SAASC,cAAc","file":"sudoku.dc0f11b6.js","sourceRoot":"..","sourcesContent":["import { Elm } from './src/Main.elm';\r\n\r\nElm.Main.init({\r\n  node: document.querySelector('body')\r\n});\r\n"]}
