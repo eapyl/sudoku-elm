@@ -4,8 +4,10 @@ import Model exposing (Model, emptyModel)
 import Msg exposing (Msg(..))
 import Sudoku
     exposing
-        ( createBoard
-        , getFreeCells
+        ( Cell
+        , createBoard
+        , setCell
+        , setComplexity
         , update
         )
 
@@ -25,44 +27,22 @@ update msg model =
 
         SelectedCValue pos cvalue ->
             let
-                updatedSudoku sudoku updated status =
-                    { sudoku | board = updated, status = status }
-
-                updatedBoard =
-                    model.sudoku.board
-                        |> List.map
-                            (\c ->
-                                if c.pos == pos then
-                                    { c | value = cvalue }
-
-                                else
-                                    c
-                            )
+                updatedSudoku =
+                    setCell model.sudoku (Cell pos cvalue)
             in
-            if model.sudoku.solution == updatedBoard then
-                ( { model
-                    | selectedCell = Nothing
-                    , sudoku = updatedSudoku model.sudoku updatedBoard (Just "Solved!")
-                  }
-                , Cmd.none
-                )
-
-            else
-                ( { model
-                    | selectedCell = Nothing
-                    , sudoku = updatedSudoku model.sudoku updatedBoard Nothing
-                  }
-                , Cmd.none
-                )
+            ( { model
+                | selectedCell = Nothing
+                , sudoku = updatedSudoku
+              }
+            , Cmd.none
+            )
 
         ChangeLevel newLevel ->
             let
-                updatedSudoku sudoku =
-                    { sudoku | status = Just "Start generating board", complexity = newLevel }
+                updatedSudoku =
+                    setComplexity model.sudoku newLevel
             in
-            ( { emptyModel
-                | sudoku = updatedSudoku model.sudoku
-              }
+            ( { emptyModel | sudoku = updatedSudoku }
             , Cmd.map SudokuCommand createBoard
             )
 

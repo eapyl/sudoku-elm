@@ -9,25 +9,18 @@ module Sudoku exposing
     , Position
     , allIndexes
     , allValues
-    , boardSize
     , createBoard
     , emptyModel
-    , freeCellPositionsOnBoard
     , fromInt
-    , getCValue
     , getCell
     , getFreeCells
-    , getUsedValues
-    , hasAtLeastOneSolution
     , indexToInt
     , initEmptyBoard
     , isValidValue
-    , rawIndexToPossiblePosition
-    , size
+    , setCell
+    , setComplexity
     , toString
-    , tryToRemoveValuesFromBoard
     , update
-    , valueCompleteGenerator
     )
 
 import Process
@@ -90,6 +83,7 @@ type Complexity
 type alias Model =
     { board : Board
     , solution : Board
+    , freeCells : List Position
     , triedValues : List ( Position, CValue )
     , complexity : Complexity
     , status : Maybe String
@@ -98,7 +92,7 @@ type alias Model =
 
 emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] Easy Nothing
+    Model initEmptyBoard initEmptyBoard [] [] Easy (Just "Generating board")
 
 
 type Msg
@@ -229,9 +223,15 @@ update msg model =
 
                 boardWithFreeCells =
                     tryToRemoveValuesFromBoard (List.take mapLevelToInt positionsToClean) model.board
+
+                freeCellsPositions =
+                    boardWithFreeCells
+                        |> List.filter (\x -> x.value == Empty)
+                        |> List.map (\x -> x.pos)
             in
             ( { model
                 | board = boardWithFreeCells
+                , freeCells = freeCellsPositions
               }
             , Cmd.none
             )
@@ -284,13 +284,6 @@ update msg model =
             ( model
             , generateBoard remainingCells
             )
-
-
-freeCellPositionsOnBoard : Model -> List Position
-freeCellPositionsOnBoard model =
-    model.board
-        |> List.filter (\x -> x.value == Empty)
-        |> List.map (\x -> x.pos)
 
 
 sendDelayed : (a -> msg) -> a -> Cmd msg
@@ -360,22 +353,6 @@ boardSize =
     size * size
 
 
-getCValue : Board -> Position -> CValue
-getCValue board ( row, column ) =
-    board
-        |> List.filter
-            (\c ->
-                let
-                    ( r, col ) =
-                        c.pos
-                in
-                r == row && col == column
-            )
-        |> List.head
-        |> Maybe.map (\c -> c.value)
-        |> Maybe.withDefault Empty
-
-
 getCell : Board -> Position -> Maybe Cell
 getCell board ( row, column ) =
     board
@@ -388,6 +365,31 @@ getCell board ( row, column ) =
                 r == row && col == column
             )
         |> List.head
+
+
+setCell : Model -> Cell -> Model
+setCell model cell =
+    let
+        newBoard =
+            model.board
+                |> List.map
+                    (\c ->
+                        if c.pos == cell.pos then
+                            { c | value = cell.value }
+
+                        else
+                            c
+                    )
+    in
+    { model
+        | board = newBoard
+        , status =
+            if newBoard == model.solution then
+                Just "Solved!"
+
+            else
+                Nothing
+    }
 
 
 type SolutionCount
@@ -609,6 +611,11 @@ getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
                         True
             )
         |> List.map (\c -> c.value)
+
+
+setComplexity : Model -> Complexity -> Model
+setComplexity model complexity =
+    { model | complexity = complexity }
 
 
 rawIndexToPossiblePosition : Int -> ( Maybe Index, Maybe Index )

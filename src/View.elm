@@ -18,7 +18,6 @@ import Sudoku
         , Index(..)
         , Position
         , allIndexes
-        , freeCellPositionsOnBoard
         , fromInt
         , getCell
         , indexToInt
@@ -66,7 +65,7 @@ mainView model =
                         [ width fill, height fill ]
                         (allIndexes
                             |> List.map
-                                (\v -> generateRow (freeCellPositionsOnBoard model.sudoku) model.selectedCell currentBoard v)
+                                (\v -> generateRow model.sudoku.freeCells model.selectedCell currentBoard v)
                         )
             ]
         , row [ spacing 5, paddingXY 0 5, width fill ]
@@ -251,6 +250,10 @@ valueInModal ( r, c ) ( ( r1, c1 ), _ ) =
 
     else
         Nothing
+
+
+
+--
 
 
 generateRow : List Position -> Maybe Position -> Board -> Index -> Element Msg
