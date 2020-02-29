@@ -1,6 +1,5 @@
 module Sudoku.Model exposing
     ( Board
-    , BoxGroup(..)
     , CValue(..)
     , Cell
     , Complexity(..)
@@ -11,12 +10,6 @@ module Sudoku.Model exposing
     , boardSize
     , size
     )
-
-
-type BoxGroup
-    = A
-    | B
-    | C
 
 
 type CValue

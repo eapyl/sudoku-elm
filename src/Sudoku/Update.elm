@@ -6,7 +6,6 @@ import Random.List
 import Sudoku.Model
     exposing
         ( Board
-        , BoxGroup(..)
         , CValue(..)
         , Cell
         , Complexity(..)
@@ -25,25 +24,10 @@ import Task
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ValuesForBoxGenerated boxPosition nextBoxPosition values ->
+        ValuesForBoxGenerated ( list1, list2, list3 ) ->
             let
-                getMultiplier ( mainGroup, _ ) =
-                    case mainGroup of
-                        A ->
-                            0
-
-                        B ->
-                            3
-
-                        C ->
-                            6
-
-                updatedValues =
-                    let
-                        multiplier =
-                            getMultiplier boxPosition
-                    in
-                    values
+                generatedCellValues multiplier list =
+                    list
                         |> List.indexedMap
                             (\i ->
                                 \value ->
@@ -61,6 +45,10 @@ update msg model =
                                         _ ->
                                             Nothing
                             )
+
+                allGeneratedValues =
+                    List.append (generatedCellValues 0 list1) <|
+                        List.append (generatedCellValues 3 list2) (generatedCellValues 6 list3)
 
                 updatedBoard =
                     model.board
@@ -81,7 +69,7 @@ update msg model =
                                                     _ ->
                                                         Nothing
                                             )
-                                            updatedValues
+                                            allGeneratedValues
                                             |> List.head
                                 in
                                 case searchedValue of
@@ -92,16 +80,8 @@ update msg model =
                                         c
                             )
             in
-            ( { model | solution = updatedBoard, board = updatedBoard }
-            , case nextBoxPosition of
-                Just ( B, B ) ->
-                    Random.generate (ValuesForBoxGenerated ( B, B ) (Just ( C, C ))) valueCompleteGenerator
-
-                Just ( C, C ) ->
-                    Random.generate (ValuesForBoxGenerated ( C, C ) Nothing) valueCompleteGenerator
-
-                _ ->
-                    generateBoard <| getFreeCells updatedBoard
+            ( { model | board = updatedBoard }
+            , generateBoard <| getFreeCells updatedBoard
             )
 
         FreeCellSelected freeCells cell ->
@@ -269,14 +249,9 @@ valueGenerator initial rest =
     Random.uniform initial rest
 
 
-createBoardCommand : List CValue -> Msg
-createBoardCommand =
-    ValuesForBoxGenerated ( A, A ) (Just ( B, B ))
-
-
 createBoard : Cmd Msg
 createBoard =
-    Random.generate createBoardCommand valueCompleteGenerator
+    Random.generate ValuesForBoxGenerated valueCompleteGenerator
 
 
 freeCellGenerator : Cell CValue -> List (Cell CValue) -> Random.Generator (Cell CValue)
@@ -300,9 +275,17 @@ positionCompleteGenerator =
         |> Random.List.shuffle
 
 
-valueCompleteGenerator : Random.Generator (List CValue)
+valueCompleteGenerator : Random.Generator ( List CValue, List CValue, List CValue )
 valueCompleteGenerator =
-    Random.List.shuffle allValues
+    let
+        listGenerator =
+            Random.List.shuffle allValues
+    in
+    Random.map3
+        (\a -> \b -> \c -> ( a, b, c ))
+        listGenerator
+        listGenerator
+        listGenerator
 
 
 setCell : Model -> Cell CValue -> Model
