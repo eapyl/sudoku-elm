@@ -24,9 +24,9 @@ import Task
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ValuesForBoxGenerated ( list1, list2, list3 ) ->
+        ValuesForDiagonalBoxesGenerated ( list1, list2, list3 ) ->
             let
-                generatedCellValues multiplier list =
+                generatedCellValuesForOneBox multiplier list =
                     list
                         |> List.indexedMap
                             (\i ->
@@ -45,39 +45,27 @@ update msg model =
                                         _ ->
                                             Nothing
                             )
+                        |> List.filterMap (\a -> a)
 
                 allGeneratedValues =
-                    List.append (generatedCellValues 0 list1) <|
-                        List.append (generatedCellValues 3 list2) (generatedCellValues 6 list3)
+                    List.append (generatedCellValuesForOneBox 0 list1) <|
+                        List.append (generatedCellValuesForOneBox 3 list2) (generatedCellValuesForOneBox 6 list3)
 
                 updatedBoard =
                     model.board
                         |> List.map
-                            (\c ->
-                                let
-                                    searchedValue =
-                                        List.filterMap
-                                            (\i ->
-                                                case i of
-                                                    Just ( pos, value ) ->
-                                                        if c.pos == pos then
-                                                            Just ( pos, value )
+                            (\boardCell ->
+                                allGeneratedValues
+                                    |> List.filterMap
+                                        (\( pos, value ) ->
+                                            if boardCell.pos == pos then
+                                                Just <| Cell pos value
 
-                                                        else
-                                                            Nothing
-
-                                                    _ ->
-                                                        Nothing
-                                            )
-                                            allGeneratedValues
-                                            |> List.head
-                                in
-                                case searchedValue of
-                                    Just ( _, value ) ->
-                                        { c | value = value }
-
-                                    Nothing ->
-                                        c
+                                            else
+                                                Nothing
+                                        )
+                                    |> List.head
+                                    |> Maybe.withDefault boardCell
                             )
             in
             ( { model | board = updatedBoard }
@@ -112,10 +100,10 @@ update msg model =
                 mapLevelToInt =
                     case model.complexity of
                         Hard ->
-                            60
+                            50
 
                         Normal ->
-                            40
+                            35
 
                         Easy ->
                             20
@@ -251,7 +239,7 @@ valueGenerator initial rest =
 
 createBoard : Cmd Msg
 createBoard =
-    Random.generate ValuesForBoxGenerated valueCompleteGenerator
+    Random.generate ValuesForDiagonalBoxesGenerated valueCompleteGenerator
 
 
 freeCellGenerator : Cell CValue -> List (Cell CValue) -> Random.Generator (Cell CValue)

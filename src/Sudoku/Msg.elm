@@ -4,7 +4,7 @@ import Sudoku.Model exposing (CValue, Cell, ModalCValue, Position)
 
 
 type Msg
-    = ValuesForBoxGenerated ( List CValue, List CValue, List CValue )
+    = ValuesForDiagonalBoxesGenerated ( List CValue, List CValue, List CValue )
     | FreeCellSelected (List (Cell CValue)) (Cell CValue)
     | RemoveValueFromBoard (List Position)
     | RandomValueGenerated (List (Cell CValue)) Position CValue
