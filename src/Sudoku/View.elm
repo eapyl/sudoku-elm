@@ -107,9 +107,6 @@ modalCell selectedCell ( row, col ) =
         targetCol =
             indexToInt col
 
-        targetPosition =
-            ( row, col )
-
         selectedToModalCell ( selectedRow, selectedCol ) =
             let
                 intRow =
@@ -117,6 +114,9 @@ modalCell selectedCell ( row, col ) =
 
                 intCol =
                     indexToInt selectedCol
+
+                targetPosition =
+                    ( selectedRow, selectedCol )
 
                 startRow =
                     if intRow // 2 >= 3 then
@@ -162,10 +162,10 @@ modalCell selectedCell ( row, col ) =
             else if targetRow == startRow + 3 && targetCol == startCol then
                 Just <| Cell targetPosition (Number Empty)
 
-            else if targetRow == startRow + 3 && targetCol == startCol then
+            else if targetRow == startRow + 3 && targetCol == startCol + 1 then
                 Just <| Cell targetPosition EmptyValue
 
-            else if targetRow == startRow + 3 && targetCol == startCol then
+            else if targetRow == startRow + 3 && targetCol == startCol + 2 then
                 Just <| Cell targetPosition Back
 
             else

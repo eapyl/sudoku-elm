@@ -195,6 +195,7 @@ update msg model =
                     in
                     ( { model
                         | board = newBoard
+                        , selectedCell = Nothing
                         , status =
                             if newBoard == model.solution then
                                 Just "Solved!"
