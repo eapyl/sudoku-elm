@@ -1,14 +1,15 @@
 module Model exposing (Model, emptyModel)
 
-import Sudoku exposing (Model, Position, emptyModel)
+import Sudoku.Model as SudokuModel exposing (Model, Position)
+import Sudoku.Update as SudokuUpdate exposing (emptyModel)
 
 
 emptyModel : Model
 emptyModel =
-    Model Sudoku.emptyModel Nothing
+    Model SudokuUpdate.emptyModel Nothing
 
 
 type alias Model =
-    { sudoku : Sudoku.Model
+    { sudoku : SudokuModel.Model
     , selectedCell : Maybe Position
     }

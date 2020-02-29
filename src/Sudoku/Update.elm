@@ -1,106 +1,25 @@
-module Sudoku exposing
-    ( Board
-    , CValue(..)
-    , Cell
-    , Complexity(..)
-    , Index
-    , Model
-    , Msg
-    , Position
-    , allIndexes
-    , allValues
-    , createBoard
-    , emptyModel
-    , fromInt
-    , getCell
-    , getFreeCells
-    , indexToInt
-    , initEmptyBoard
-    , isValidValue
-    , setCell
-    , setComplexity
-    , toString
-    , update
-    )
+module Sudoku.Update exposing (createBoard, emptyModel, isValidValue, setCell, setComplexity, update)
 
 import Process
 import Random
 import Random.List
+import Sudoku.Model
+    exposing
+        ( Board
+        , BoxGroup(..)
+        , CValue(..)
+        , Cell
+        , Complexity(..)
+        , Index
+        , ModalCValue(..)
+        , Model
+        , Position
+        , boardSize
+        , size
+        )
+import Sudoku.Msg exposing (Msg(..))
+import Sudoku.Utils exposing (allValues, fromInt, indexToInt)
 import Task
-
-
-type BoxGroup
-    = A
-    | B
-    | C
-
-
-type CValue
-    = Empty
-    | One
-    | Two
-    | Three
-    | Four
-    | Five
-    | Six
-    | Seven
-    | Eight
-    | Nine
-
-
-type alias Position =
-    ( Index, Index )
-
-
-type alias Cell =
-    { pos : Position
-    , value : CValue
-    }
-
-
-type Index
-    = First
-    | Second
-    | Third
-    | Fourth
-    | Fifth
-    | Sixth
-    | Seventh
-    | Eighth
-    | Ninth
-
-
-type alias Board =
-    List Cell
-
-
-type Complexity
-    = Easy
-    | Normal
-    | Hard
-
-
-type alias Model =
-    { board : Board
-    , solution : Board
-    , freeCells : List Position
-    , triedValues : List ( Position, CValue )
-    , complexity : Complexity
-    , status : Maybe String
-    }
-
-
-emptyModel : Model
-emptyModel =
-    Model initEmptyBoard initEmptyBoard [] [] Easy (Just "Generating board")
-
-
-type Msg
-    = ValuesForBoxGenerated ( BoxGroup, BoxGroup ) (Maybe ( BoxGroup, BoxGroup )) (List CValue)
-    | FreeCellSelected (List Cell) Cell
-    | RemoveValueFromBoard (List Position)
-    | RandomValueGenerated (List Cell) Position CValue
-    | DelayCommand (List Cell)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -286,6 +205,48 @@ update msg model =
             , generateBoard remainingCells
             )
 
+        ShowModalWindow selectedPos ->
+            ( { model | selectedCell = Just selectedPos }
+            , Cmd.none
+            )
+
+        ModalCommand cell ->
+            case cell.value of
+                Number selectedCValue ->
+                    let
+                        newBoard =
+                            model.board
+                                |> List.map
+                                    (\c ->
+                                        if c.pos == cell.pos then
+                                            { c | value = selectedCValue }
+
+                                        else
+                                            c
+                                    )
+                    in
+                    ( { model
+                        | board = newBoard
+                        , status =
+                            if newBoard == model.solution then
+                                Just "Solved!"
+
+                            else
+                                Nothing
+                      }
+                    , Cmd.none
+                    )
+
+                Back ->
+                    ( { model | selectedCell = Nothing }
+                    , Cmd.none
+                    )
+
+                EmptyValue ->
+                    ( model
+                    , Cmd.none
+                    )
+
 
 sendDelayed : (a -> msg) -> a -> Cmd msg
 sendDelayed msg a =
@@ -293,7 +254,7 @@ sendDelayed msg a =
         |> Task.perform (\_ -> msg a)
 
 
-generateBoard : List Cell -> Cmd Msg
+generateBoard : List (Cell CValue) -> Cmd Msg
 generateBoard freeCells =
     case freeCells of
         head :: tail ->
@@ -303,7 +264,22 @@ generateBoard freeCells =
             Random.generate RemoveValueFromBoard positionCompleteGenerator
 
 
-freeCellGenerator : Cell -> List Cell -> Random.Generator Cell
+valueGenerator : CValue -> List CValue -> Random.Generator CValue
+valueGenerator initial rest =
+    Random.uniform initial rest
+
+
+createBoardCommand : List CValue -> Msg
+createBoardCommand =
+    ValuesForBoxGenerated ( A, A ) (Just ( B, B ))
+
+
+createBoard : Cmd Msg
+createBoard =
+    Random.generate createBoardCommand valueCompleteGenerator
+
+
+freeCellGenerator : Cell CValue -> List (Cell CValue) -> Random.Generator (Cell CValue)
 freeCellGenerator initialCell otherFreeCells =
     Random.uniform initialCell otherFreeCells
 
@@ -324,51 +300,12 @@ positionCompleteGenerator =
         |> Random.List.shuffle
 
 
-valueGenerator : CValue -> List CValue -> Random.Generator CValue
-valueGenerator initial rest =
-    Random.uniform initial rest
-
-
-createBoardCommand : List CValue -> Msg
-createBoardCommand =
-    ValuesForBoxGenerated ( A, A ) (Just ( B, B ))
-
-
-createBoard : Cmd Msg
-createBoard =
-    Random.generate createBoardCommand valueCompleteGenerator
-
-
 valueCompleteGenerator : Random.Generator (List CValue)
 valueCompleteGenerator =
     Random.List.shuffle allValues
 
 
-size : Int
-size =
-    9
-
-
-boardSize : Int
-boardSize =
-    size * size
-
-
-getCell : Board -> Position -> Maybe Cell
-getCell board ( row, column ) =
-    board
-        |> List.filter
-            (\c ->
-                let
-                    ( r, col ) =
-                        c.pos
-                in
-                r == row && col == column
-            )
-        |> List.head
-
-
-setCell : Model -> Cell -> Model
+setCell : Model -> Cell CValue -> Model
 setCell model cell =
     let
         newBoard =
@@ -399,7 +336,7 @@ type SolutionCount
     | More
 
 
-hasOnlyOneSolution : Board -> List Cell -> Bool
+hasOnlyOneSolution : Board -> List (Cell CValue) -> Bool
 hasOnlyOneSolution board freeCells =
     case backtracking False Zero board freeCells of
         Zero ->
@@ -412,7 +349,7 @@ hasOnlyOneSolution board freeCells =
             False
 
 
-hasAtLeastOneSolution : Board -> List Cell -> Bool
+hasAtLeastOneSolution : Board -> List (Cell CValue) -> Bool
 hasAtLeastOneSolution board freeCells =
     case backtracking True Zero board freeCells of
         Zero ->
@@ -422,7 +359,7 @@ hasAtLeastOneSolution board freeCells =
             True
 
 
-backtracking : Bool -> SolutionCount -> Board -> List Cell -> SolutionCount
+backtracking : Bool -> SolutionCount -> Board -> List (Cell CValue) -> SolutionCount
 backtracking oneSolutionEnough count board freeCells =
     case freeCells of
         head :: tail ->
@@ -631,6 +568,28 @@ rawIndexToPossiblePosition i =
     ( fromInt row, fromInt column )
 
 
+getFreeCells : Board -> List (Cell CValue)
+getFreeCells board =
+    board
+        |> List.filter (\c -> c.value == Empty)
+
+
+isValidValue : Board -> Cell CValue -> Bool
+isValidValue board cell =
+    let
+        ( row, col ) =
+            cell.pos
+    in
+    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cell.value |> not)
+        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cell.value |> not)
+        && (getAllNonEmptyValuesInBoxWithSkip (Just cell.pos) board cell.pos |> List.member cell.value |> not)
+
+
+emptyModel : Model
+emptyModel =
+    Model initEmptyBoard initEmptyBoard [] [] Easy Nothing (Just "Generating board")
+
+
 initEmptyBoard : Board
 initEmptyBoard =
     List.range 0 (boardSize - 1)
@@ -645,129 +604,3 @@ initEmptyBoard =
                         Nothing
             )
         |> List.map (\pos -> Cell pos Empty)
-
-
-getFreeCells : Board -> List Cell
-getFreeCells board =
-    board
-        |> List.filter (\c -> c.value == Empty)
-
-
-allValues : List CValue
-allValues =
-    [ One, Two, Three, Four, Five, Six, Seven, Eight, Nine ]
-
-
-allIndexes : List Index
-allIndexes =
-    [ First, Second, Third, Fourth, Fifth, Sixth, Seventh, Eighth, Ninth ]
-
-
-isValidValue : Board -> Cell -> Bool
-isValidValue board cell =
-    let
-        ( row, col ) =
-            cell.pos
-    in
-    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cell.value |> not)
-        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cell.value |> not)
-        && (getAllNonEmptyValuesInBoxWithSkip (Just cell.pos) board cell.pos |> List.member cell.value |> not)
-
-
-fromInt : Int -> Maybe Index
-fromInt index =
-    case index of
-        0 ->
-            Just First
-
-        1 ->
-            Just Second
-
-        2 ->
-            Just Third
-
-        3 ->
-            Just Fourth
-
-        4 ->
-            Just Fifth
-
-        5 ->
-            Just Sixth
-
-        6 ->
-            Just Seventh
-
-        7 ->
-            Just Eighth
-
-        8 ->
-            Just Ninth
-
-        _ ->
-            Nothing
-
-
-toString : CValue -> String
-toString value =
-    case value of
-        Empty ->
-            " "
-
-        One ->
-            "1"
-
-        Two ->
-            "2"
-
-        Three ->
-            "3"
-
-        Four ->
-            "4"
-
-        Five ->
-            "5"
-
-        Six ->
-            "6"
-
-        Seven ->
-            "7"
-
-        Eight ->
-            "8"
-
-        Nine ->
-            "9"
-
-
-indexToInt : Index -> Int
-indexToInt index =
-    case index of
-        First ->
-            0
-
-        Second ->
-            1
-
-        Third ->
-            2
-
-        Fourth ->
-            3
-
-        Fifth ->
-            4
-
-        Sixth ->
-            5
-
-        Seventh ->
-            6
-
-        Eighth ->
-            7
-
-        Ninth ->
-            8

@@ -4,7 +4,7 @@ import Browser
 import Json.Decode exposing (Value)
 import Model exposing (Model, emptyModel)
 import Msg exposing (Msg(..))
-import Sudoku exposing (createBoard)
+import Sudoku.Update exposing (createBoard)
 import Update exposing (update)
 import View exposing (view)
 

@@ -1,11 +1,9 @@
 module Msg exposing (Msg(..))
 
-import Sudoku as Sudoku
+import Sudoku.Model as Sudoku
+import Sudoku.Msg
 
 
 type Msg
-    = ShowModal Sudoku.Position
-    | CloseModal
-    | SelectedCValue Sudoku.Position Sudoku.CValue
-    | ChangeLevel Sudoku.Complexity
-    | SudokuCommand Sudoku.Msg
+    = ChangeLevel Sudoku.Complexity
+    | SudokuCommand Sudoku.Msg.Msg
