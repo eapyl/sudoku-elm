@@ -28,7 +28,10 @@ type Value
 
 
 type alias Position =
-    ( Index, Index )
+    { row : Index
+    , col : Index
+    , box : Index
+    }
 
 
 type BoardCellType

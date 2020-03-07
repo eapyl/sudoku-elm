@@ -10,7 +10,6 @@ import Sudoku.Model
         , BoardCellType(..)
         , Complexity(..)
         , Index
-        , ModalCell
         , ModalValue(..)
         , Model
         , Position
@@ -19,7 +18,7 @@ import Sudoku.Model
         , size
         )
 import Sudoku.Msg exposing (Msg(..))
-import Sudoku.Utils exposing (allValues, fromInt, indexToInt)
+import Sudoku.Utils exposing (allValues, fromInt)
 import Task
 
 
@@ -141,27 +140,27 @@ update msg model =
 
         ModalCommand cell ->
             case cell.value of
-                Number selectedCValue ->
+                Number selectedValue ->
                     let
                         isValid =
-                            isValidValue model.board ( cell.position, selectedCValue )
+                            isValidValue model.board ( cell.position, selectedValue )
 
                         newBoard =
                             if isValid then
-                                updateCellOnBoard model.board (BoardCell cell.position selectedCValue Valid)
+                                updateCellOnBoard model.board (BoardCell cell.position selectedValue Valid)
 
                             else
-                                updateCellOnBoard model.board (BoardCell cell.position selectedCValue Invalid)
+                                updateCellOnBoard model.board (BoardCell cell.position selectedValue Invalid)
                     in
                     ( { model
                         | board = newBoard
                         , selectedCell = Nothing
                         , status =
-                            if newBoard == model.solution then
-                                Just "Solved!"
+                            if List.any (\a -> a.category == Invalid) newBoard then
+                                Nothing
 
                             else
-                                Nothing
+                                Just "Solved!"
                       }
                     , Cmd.none
                     )
@@ -213,10 +212,10 @@ positionCompleteGenerator =
     List.range 0 (boardSize - 1)
         |> List.map rawIndexToPossiblePosition
         |> List.filterMap
-            (\( mr, mc ) ->
-                case ( mr, mc ) of
-                    ( Just r, Just c ) ->
-                        Just ( r, c )
+            (\( mr, mc, mb ) ->
+                case ( mr, mc, mb ) of
+                    ( Just row, Just col, Just box ) ->
+                        Just <| Position row col box
 
                     _ ->
                         Nothing
@@ -265,7 +264,7 @@ updateCellOnBoard board cell =
         |> List.map
             (\c ->
                 if c.position == cell.position then
-                    { c | value = cell.value }
+                    cell
 
                 else
                     c
@@ -364,7 +363,7 @@ tryToRemoveValuesFromBoard positionsToClean board =
                         |> List.map
                             (\c ->
                                 if c.position == currentPositionToClean then
-                                    { c | value = Empty }
+                                    { c | value = Empty, category = Invalid }
 
                                 else
                                     c
@@ -384,109 +383,30 @@ tryToRemoveValuesFromBoard positionsToClean board =
 
 
 getUsedValues : Board -> Position -> List Value
-getUsedValues board ( row, col ) =
+getUsedValues board { row, col, box } =
     let
-        inBox =
-            getAllNonEmptyValuesInBox board ( row, col )
-
-        inRow =
-            getAllNonEmptyValuesInRow board row
-                |> List.filter (\a -> List.member a inBox |> not)
-
-        inCol =
-            getAllNonEmptyValuesInColumn board col
-                |> List.filter (\a -> List.member a inBox |> not)
-                |> List.filter (\a -> List.member a inRow |> not)
+        isFiltered pos =
+            pos.row == row || pos.col == col || pos.box == box
     in
-    List.append inBox inRow
-        |> List.append inCol
-
-
-getBoxIndex : Position -> Int
-getBoxIndex ( row, col ) =
-    let
-        rowInd =
-            indexToInt row
-
-        colInd =
-            indexToInt col
-    in
-    rowInd // 3 * 3 + colInd // 3
-
-
-getAllNonEmptyValuesInBox : Board -> Position -> List Value
-getAllNonEmptyValuesInBox =
-    getAllNonEmptyValuesInBoxWithSkip Nothing
-
-
-getAllNonEmptyValuesInBoxWithSkip : Maybe Position -> Board -> Position -> List Value
-getAllNonEmptyValuesInBoxWithSkip skipCell board pos =
     board
         |> List.filter (\c -> c.value /= Empty)
-        |> List.filter
-            (\c ->
-                getBoxIndex pos == getBoxIndex c.position
-            )
-        |> List.filter
-            (\c ->
-                case skipCell of
-                    Just v ->
-                        v /= c.position
-
-                    Nothing ->
-                        True
-            )
+        |> List.filter (\c -> isFiltered c.position)
         |> List.map (\c -> c.value)
 
 
-getAllNonEmptyValuesInRow : Board -> Index -> List Value
-getAllNonEmptyValuesInRow =
-    getAllNonEmptyValues True
+getAllNonEmptyValues : Board -> Position -> List Value
+getAllNonEmptyValues board position =
+    let
+        { row, col, box } =
+            position
 
-
-getAllNonEmptyValuesInColumn : Board -> Index -> List Value
-getAllNonEmptyValuesInColumn =
-    getAllNonEmptyValues False
-
-
-getAllNonEmptyValues : Bool -> Board -> Index -> List Value
-getAllNonEmptyValues =
-    getAllNonEmptyValuesWithSkip Nothing
-
-
-getAllNonEmptyValuesWithSkip : Maybe Index -> Bool -> Board -> Index -> List Value
-getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
+        isFiltered pos =
+            pos.row == row || pos.col == col || pos.box == box
+    in
     board
+        |> List.filter (\c -> c.position /= position)
         |> List.filter (\c -> c.value /= Empty)
-        |> List.filter
-            (\c ->
-                let
-                    ( row, col ) =
-                        c.position
-                in
-                if isRow then
-                    row == index
-
-                else
-                    col == index
-            )
-        |> List.filter
-            (\c ->
-                let
-                    ( row, col ) =
-                        c.position
-                in
-                case skipRowOrCol of
-                    Just v ->
-                        if isRow then
-                            v /= col
-
-                        else
-                            v /= row
-
-                    Nothing ->
-                        True
-            )
+        |> List.filter (\c -> isFiltered c.position)
         |> List.map (\c -> c.value)
 
 
@@ -495,7 +415,7 @@ setComplexity complexity =
     { emptyModel | complexity = complexity }
 
 
-rawIndexToPossiblePosition : Int -> ( Maybe Index, Maybe Index )
+rawIndexToPossiblePosition : Int -> ( Maybe Index, Maybe Index, Maybe Index )
 rawIndexToPossiblePosition i =
     let
         row =
@@ -503,8 +423,11 @@ rawIndexToPossiblePosition i =
 
         column =
             remainderBy size i
+
+        box =
+            row // 3 * 3 + column // 3
     in
-    ( fromInt row, fromInt column )
+    ( fromInt row, fromInt column, fromInt box )
 
 
 getPositionsOfFreeCells : Board -> List Position
@@ -516,13 +439,7 @@ getPositionsOfFreeCells board =
 
 isValidValue : Board -> ( Position, Value ) -> Bool
 isValidValue board ( position, cvalue ) =
-    let
-        ( row, col ) =
-            position
-    in
-    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cvalue |> not)
-        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cvalue |> not)
-        && (getAllNonEmptyValuesInBoxWithSkip (Just position) board position |> List.member cvalue |> not)
+    getAllNonEmptyValues board position |> List.member cvalue |> not
 
 
 emptyModel : Model
@@ -535,10 +452,10 @@ initEmptyBoard =
     List.range 0 (boardSize - 1)
         |> List.map (\i -> rawIndexToPossiblePosition i)
         |> List.filterMap
-            (\( r, c ) ->
-                case ( r, c ) of
-                    ( Just rV, Just cV ) ->
-                        Just ( rV, cV )
+            (\( r, c, b ) ->
+                case ( r, c, b ) of
+                    ( Just row, Just col, Just box ) ->
+                        Just <| Position row col box
 
                     _ ->
                         Nothing

@@ -53,7 +53,7 @@ generateRow initialFreeCells selected board index =
             |> List.map
                 (\cell ->
                     let
-                        ( row, col ) =
+                        { row, col, box } =
                             cell.position
 
                         isGray =
@@ -73,7 +73,7 @@ generateRow initialFreeCells selected board index =
                             if hasModal then
                                 case cell.category of
                                     Initial ->
-                                        Nothing
+                                        Just white
 
                                     Valid ->
                                         Just green600
@@ -98,22 +98,18 @@ generateRow initialFreeCells selected board index =
         )
 
 
-getCell : Board -> Position -> Maybe BoardCell
-getCell board ( row, column ) =
+getCell : Board -> ( Index, Index ) -> Maybe BoardCell
+getCell board ( row, col ) =
     board
         |> List.filter
             (\c ->
-                let
-                    ( r, col ) =
-                        c.position
-                in
-                r == row && col == column
+                c.position.row == row && c.position.col == col
             )
         |> List.head
 
 
 modalCell : Maybe Position -> Position -> Maybe ModalCell
-modalCell selectedCell ( row, col ) =
+modalCell selectedCell { row, col, box } =
     let
         targetRow =
             indexToInt row
@@ -121,16 +117,13 @@ modalCell selectedCell ( row, col ) =
         targetCol =
             indexToInt col
 
-        selectedToModalCell ( selectedRow, selectedCol ) =
+        selectedToModalCell targetPosition =
             let
                 intRow =
-                    indexToInt selectedRow
+                    indexToInt targetPosition.row
 
                 intCol =
-                    indexToInt selectedCol
-
-                targetPosition =
-                    ( selectedRow, selectedCol )
+                    indexToInt targetPosition.col
 
                 startRow =
                     if intRow // 2 >= 3 then
