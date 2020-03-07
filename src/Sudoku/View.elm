@@ -11,12 +11,12 @@ import Sudoku.Model
         ( Board
         , BoardCell
         , BoardCellType(..)
-        , CValue(..)
-        , Cell
         , Index
-        , ModalCValue(..)
+        , ModalCell
+        , ModalValue(..)
         , Model
         , Position
+        , Value(..)
         )
 import Sudoku.Msg exposing (Msg(..))
 import Sudoku.Utils exposing (allIndexes, indexToInt, toString)
@@ -112,7 +112,7 @@ getCell board ( row, column ) =
         |> List.head
 
 
-modalCell : Maybe Position -> Position -> Maybe (Cell ModalCValue)
+modalCell : Maybe Position -> Position -> Maybe ModalCell
 modalCell selectedCell ( row, col ) =
     let
         targetRow =
@@ -147,40 +147,40 @@ modalCell selectedCell ( row, col ) =
                         intCol + 1
             in
             if targetRow == startRow && targetCol == startCol then
-                Just <| Cell targetPosition (Number One)
+                Just <| ModalCell targetPosition (Number One)
 
             else if targetRow == startRow && targetCol == startCol + 1 then
-                Just <| Cell targetPosition (Number Two)
+                Just <| ModalCell targetPosition (Number Two)
 
             else if targetRow == startRow && targetCol == startCol + 2 then
-                Just <| Cell targetPosition (Number Three)
+                Just <| ModalCell targetPosition (Number Three)
 
             else if targetRow == startRow + 1 && targetCol == startCol then
-                Just <| Cell targetPosition (Number Four)
+                Just <| ModalCell targetPosition (Number Four)
 
             else if targetRow == startRow + 1 && targetCol == startCol + 1 then
-                Just <| Cell targetPosition (Number Five)
+                Just <| ModalCell targetPosition (Number Five)
 
             else if targetRow == startRow + 1 && targetCol == startCol + 2 then
-                Just <| Cell targetPosition (Number Six)
+                Just <| ModalCell targetPosition (Number Six)
 
             else if targetRow == startRow + 2 && targetCol == startCol then
-                Just <| Cell targetPosition (Number Seven)
+                Just <| ModalCell targetPosition (Number Seven)
 
             else if targetRow == startRow + 2 && targetCol == startCol + 1 then
-                Just <| Cell targetPosition (Number Eight)
+                Just <| ModalCell targetPosition (Number Eight)
 
             else if targetRow == startRow + 2 && targetCol == startCol + 2 then
-                Just <| Cell targetPosition (Number Nine)
+                Just <| ModalCell targetPosition (Number Nine)
 
             else if targetRow == startRow + 3 && targetCol == startCol then
-                Just <| Cell targetPosition (Number Empty)
+                Just <| ModalCell targetPosition (Number Empty)
 
             else if targetRow == startRow + 3 && targetCol == startCol + 1 then
-                Just <| Cell targetPosition EmptyValue
+                Just <| ModalCell targetPosition EmptyValue
 
             else if targetRow == startRow + 3 && targetCol == startCol + 2 then
-                Just <| Cell targetPosition Back
+                Just <| ModalCell targetPosition Back
 
             else
                 Nothing
@@ -188,7 +188,7 @@ modalCell selectedCell ( row, col ) =
     Maybe.andThen selectedToModalCell selectedCell
 
 
-modalCellElement : Cell ModalCValue -> Element Msg
+modalCellElement : ModalCell -> Element Msg
 modalCellElement modalCellValue =
     let
         txt =

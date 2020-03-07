@@ -1,9 +1,9 @@
 module Sudoku.Utils exposing (allIndexes, allValues, fromInt, indexToInt, toString)
 
-import Sudoku.Model exposing (CValue(..), Index(..))
+import Sudoku.Model exposing (Index(..), Value(..))
 
 
-allValues : List CValue
+allValues : List Value
 allValues =
     [ One, Two, Three, Four, Five, Six, Seven, Eight, Nine ]
 
@@ -47,7 +47,7 @@ fromInt index =
             Nothing
 
 
-toString : CValue -> String
+toString : Value -> String
 toString value =
     case value of
         Empty ->

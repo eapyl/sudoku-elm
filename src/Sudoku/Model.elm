@@ -2,19 +2,19 @@ module Sudoku.Model exposing
     ( Board
     , BoardCell
     , BoardCellType(..)
-    , CValue(..)
-    , Cell
     , Complexity(..)
     , Index(..)
-    , ModalCValue(..)
+    , ModalCell
+    , ModalValue(..)
     , Model
     , Position
+    , Value(..)
     , boardSize
     , size
     )
 
 
-type CValue
+type Value
     = Empty
     | One
     | Two
@@ -39,19 +39,19 @@ type BoardCellType
 
 type alias BoardCell =
     { position : Position
-    , value : CValue
+    , value : Value
     , category : BoardCellType
     }
 
 
-type alias Cell a =
-    { pos : Position
-    , value : a
+type alias ModalCell =
+    { position : Position
+    , value : ModalValue
     }
 
 
-type ModalCValue
-    = Number CValue
+type ModalValue
+    = Number Value
     | EmptyValue
     | Back
 
@@ -82,7 +82,7 @@ type alias Model =
     { board : Board
     , solution : Board
     , freeCells : List Position
-    , triedValues : List ( Position, CValue )
+    , triedValues : List ( Position, Value )
     , complexity : Complexity
     , selectedCell : Maybe Position
     , status : Maybe String

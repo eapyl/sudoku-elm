@@ -8,12 +8,13 @@ import Sudoku.Model
         ( Board
         , BoardCell
         , BoardCellType(..)
-        , CValue(..)
         , Complexity(..)
         , Index
-        , ModalCValue(..)
+        , ModalCell
+        , ModalValue(..)
         , Model
         , Position
+        , Value(..)
         , boardSize
         , size
         )
@@ -25,51 +26,18 @@ import Task
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ValuesForDiagonalBoxesGenerated ( list1, list2, list3 ) ->
+        InitialValuesForBoardGenerated values ->
             let
-                generatedCellValuesForOneBox multiplier list =
-                    list
-                        |> List.indexedMap
-                            (\i ->
-                                \value ->
-                                    let
-                                        row =
-                                            (i + 3 * multiplier) // 3 |> fromInt
-
-                                        col =
-                                            (remainderBy 3 i + multiplier) |> fromInt
-                                    in
-                                    case ( row, col ) of
-                                        ( Just r, Just c ) ->
-                                            Just ( ( r, c ), value )
-
-                                        _ ->
-                                            Nothing
-                            )
-                        |> List.filterMap (\a -> a)
-
-                allGeneratedValues =
-                    List.append (generatedCellValuesForOneBox 0 list1) <|
-                        List.append (generatedCellValuesForOneBox 3 list2) (generatedCellValuesForOneBox 6 list3)
-
                 updatedBoard =
-                    model.board
-                        |> List.map
+                    values
+                        |> List.map2
                             (\boardCell ->
-                                allGeneratedValues
-                                    |> List.filterMap
-                                        (\( pos, value ) ->
-                                            if boardCell.position == pos then
-                                                Just <| BoardCell pos value Initial
-
-                                            else
-                                                Nothing
-                                        )
-                                    |> List.head
-                                    |> Maybe.withDefault boardCell
+                                \generatedValue ->
+                                    { boardCell | value = generatedValue }
                             )
+                            model.board
             in
-            ( { model | board = updatedBoard }
+            ( { model | board = updatedBoard, status = Nothing }
             , generateBoard <| getPositionsOfFreeCells updatedBoard
             )
 
@@ -176,14 +144,14 @@ update msg model =
                 Number selectedCValue ->
                     let
                         isValid =
-                            isValidValue model.board ( cell.pos, selectedCValue )
+                            isValidValue model.board ( cell.position, selectedCValue )
 
                         newBoard =
                             if isValid then
-                                updateCellOnBoard model.board (BoardCell cell.pos selectedCValue Valid)
+                                updateCellOnBoard model.board (BoardCell cell.position selectedCValue Valid)
 
                             else
-                                updateCellOnBoard model.board (BoardCell cell.pos selectedCValue Invalid)
+                                updateCellOnBoard model.board (BoardCell cell.position selectedCValue Invalid)
                     in
                     ( { model
                         | board = newBoard
@@ -225,14 +193,14 @@ generateBoard freeCellPositions =
             Random.generate RemoveValueFromBoard positionCompleteGenerator
 
 
-valueGenerator : CValue -> List CValue -> Random.Generator CValue
+valueGenerator : Value -> List Value -> Random.Generator Value
 valueGenerator initial rest =
     Random.uniform initial rest
 
 
 createBoard : Cmd Msg
 createBoard =
-    Random.generate ValuesForDiagonalBoxesGenerated valueCompleteGenerator
+    Random.generate InitialValuesForBoardGenerated initialValuesForBoardGenerator
 
 
 freeCellGenerator : Position -> List Position -> Random.Generator Position
@@ -256,17 +224,39 @@ positionCompleteGenerator =
         |> Random.List.shuffle
 
 
-valueCompleteGenerator : Random.Generator ( List CValue, List CValue, List CValue )
-valueCompleteGenerator =
+initialValuesForBoardGenerator : Random.Generator (List Value)
+initialValuesForBoardGenerator =
     let
-        listGenerator =
+        listGenerator col =
             Random.List.shuffle allValues
+                |> Random.andThen
+                    (\list ->
+                        let
+                            rowForList =
+                                createRowGenerator list
+                        in
+                        (rowForList 0 col
+                            ++ rowForList 1 col
+                            ++ rowForList 2 col
+                        )
+                            |> Random.constant
+                    )
+
+        createRowGenerator list row col =
+            if col == 1 then
+                (list |> List.drop (3 * row) |> List.take 3) ++ List.repeat 6 Empty
+
+            else if col == 2 then
+                List.repeat 3 Empty ++ (list |> List.drop (3 * row) |> List.take 3) ++ List.repeat 3 Empty
+
+            else
+                List.repeat 6 Empty ++ (list |> List.drop (3 * row) |> List.take 3)
     in
     Random.map3
-        (\a -> \b -> \c -> ( a, b, c ))
-        listGenerator
-        listGenerator
-        listGenerator
+        (\a -> \b -> \c -> a ++ b ++ c)
+        (listGenerator 1)
+        (listGenerator 2)
+        (listGenerator 3)
 
 
 updateCellOnBoard : Board -> BoardCell -> Board
@@ -393,7 +383,7 @@ tryToRemoveValuesFromBoard positionsToClean board =
             board
 
 
-getUsedValues : Board -> Position -> List CValue
+getUsedValues : Board -> Position -> List Value
 getUsedValues board ( row, col ) =
     let
         inBox =
@@ -424,12 +414,12 @@ getBoxIndex ( row, col ) =
     rowInd // 3 * 3 + colInd // 3
 
 
-getAllNonEmptyValuesInBox : Board -> Position -> List CValue
+getAllNonEmptyValuesInBox : Board -> Position -> List Value
 getAllNonEmptyValuesInBox =
     getAllNonEmptyValuesInBoxWithSkip Nothing
 
 
-getAllNonEmptyValuesInBoxWithSkip : Maybe Position -> Board -> Position -> List CValue
+getAllNonEmptyValuesInBoxWithSkip : Maybe Position -> Board -> Position -> List Value
 getAllNonEmptyValuesInBoxWithSkip skipCell board pos =
     board
         |> List.filter (\c -> c.value /= Empty)
@@ -449,22 +439,22 @@ getAllNonEmptyValuesInBoxWithSkip skipCell board pos =
         |> List.map (\c -> c.value)
 
 
-getAllNonEmptyValuesInRow : Board -> Index -> List CValue
+getAllNonEmptyValuesInRow : Board -> Index -> List Value
 getAllNonEmptyValuesInRow =
     getAllNonEmptyValues True
 
 
-getAllNonEmptyValuesInColumn : Board -> Index -> List CValue
+getAllNonEmptyValuesInColumn : Board -> Index -> List Value
 getAllNonEmptyValuesInColumn =
     getAllNonEmptyValues False
 
 
-getAllNonEmptyValues : Bool -> Board -> Index -> List CValue
+getAllNonEmptyValues : Bool -> Board -> Index -> List Value
 getAllNonEmptyValues =
     getAllNonEmptyValuesWithSkip Nothing
 
 
-getAllNonEmptyValuesWithSkip : Maybe Index -> Bool -> Board -> Index -> List CValue
+getAllNonEmptyValuesWithSkip : Maybe Index -> Bool -> Board -> Index -> List Value
 getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
     board
         |> List.filter (\c -> c.value /= Empty)
@@ -524,7 +514,7 @@ getPositionsOfFreeCells board =
         |> List.map (\c -> c.position)
 
 
-isValidValue : Board -> ( Position, CValue ) -> Bool
+isValidValue : Board -> ( Position, Value ) -> Bool
 isValidValue board ( position, cvalue ) =
     let
         ( row, col ) =
