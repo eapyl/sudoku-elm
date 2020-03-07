@@ -389,13 +389,12 @@ getUsedValues board { row, col, box } =
             pos.row == row || pos.col == col || pos.box == box
     in
     board
-        |> List.filter (\c -> c.value /= Empty)
-        |> List.filter (\c -> isFiltered c.position)
+        |> List.filter (\c -> c.value /= Empty && isFiltered c.position)
         |> List.map (\c -> c.value)
 
 
-getAllNonEmptyValues : Board -> Position -> List Value
-getAllNonEmptyValues board position =
+getAllNonEmptyValuesForCell : Board -> Position -> List Value
+getAllNonEmptyValuesForCell board position =
     let
         { row, col, box } =
             position
@@ -404,9 +403,7 @@ getAllNonEmptyValues board position =
             pos.row == row || pos.col == col || pos.box == box
     in
     board
-        |> List.filter (\c -> c.position /= position)
-        |> List.filter (\c -> c.value /= Empty)
-        |> List.filter (\c -> isFiltered c.position)
+        |> List.filter (\c -> c.position /= position && c.value /= Empty && isFiltered c.position)
         |> List.map (\c -> c.value)
 
 
@@ -439,7 +436,7 @@ getPositionsOfFreeCells board =
 
 isValidValue : Board -> ( Position, Value ) -> Bool
 isValidValue board ( position, cvalue ) =
-    getAllNonEmptyValues board position |> List.member cvalue |> not
+    getAllNonEmptyValuesForCell board position |> List.member cvalue |> not
 
 
 emptyModel : Model
