@@ -1,5 +1,7 @@
 module Sudoku.Model exposing
     ( Board
+    , BoardCell
+    , BoardCellType(..)
     , CValue(..)
     , Cell
     , Complexity(..)
@@ -29,6 +31,19 @@ type alias Position =
     ( Index, Index )
 
 
+type BoardCellType
+    = Initial
+    | Valid
+    | Invalid
+
+
+type alias BoardCell =
+    { position : Position
+    , value : CValue
+    , category : BoardCellType
+    }
+
+
 type alias Cell a =
     { pos : Position
     , value : a
@@ -54,7 +69,7 @@ type Index
 
 
 type alias Board =
-    List (Cell CValue)
+    List BoardCell
 
 
 type Complexity

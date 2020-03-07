@@ -6,9 +6,19 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
-import Sudoku.Model exposing (Board, CValue(..), Cell, Index, ModalCValue(..), Model, Position)
+import Sudoku.Model
+    exposing
+        ( Board
+        , BoardCell
+        , BoardCellType(..)
+        , CValue(..)
+        , Cell
+        , Index
+        , ModalCValue(..)
+        , Model
+        , Position
+        )
 import Sudoku.Msg exposing (Msg(..))
-import Sudoku.Update exposing (isValidValue)
 import Sudoku.Utils exposing (allIndexes, indexToInt, toString)
 
 
@@ -44,7 +54,7 @@ generateRow initialFreeCells selected board index =
                 (\cell ->
                     let
                         ( row, col ) =
-                            cell.pos
+                            cell.position
 
                         isGray =
                             let
@@ -57,20 +67,24 @@ generateRow initialFreeCells selected board index =
                             (not evenRow && evenCol) || (evenRow && not evenCol)
 
                         hasModal =
-                            List.member cell.pos initialFreeCells
+                            List.member cell.position initialFreeCells
 
                         modalColor =
                             if hasModal then
-                                if isValidValue board cell then
-                                    Just green600
+                                case cell.category of
+                                    Initial ->
+                                        Nothing
 
-                                else
-                                    Just red600
+                                    Valid ->
+                                        Just green600
+
+                                    Invalid ->
+                                        Just red600
 
                             else
                                 Nothing
                     in
-                    case modalCell selected cell.pos of
+                    case modalCell selected cell.position of
                         Just modalCellValue ->
                             modalCellElement modalCellValue
 
@@ -84,14 +98,14 @@ generateRow initialFreeCells selected board index =
         )
 
 
-getCell : Board -> Position -> Maybe (Cell CValue)
+getCell : Board -> Position -> Maybe BoardCell
 getCell board ( row, column ) =
     board
         |> List.filter
             (\c ->
                 let
                     ( r, col ) =
-                        c.pos
+                        c.position
                 in
                 r == row && col == column
             )
@@ -214,12 +228,12 @@ modalCellElement modalCellValue =
                 }
 
 
-grayCell : Maybe Color -> Cell CValue -> Element Msg
+grayCell : Maybe Color -> BoardCell -> Element Msg
 grayCell =
     boardCell gray400
 
 
-normalCell : Maybe Color -> Cell CValue -> Element Msg
+normalCell : Maybe Color -> BoardCell -> Element Msg
 normalCell =
     boardCell white
 
@@ -232,7 +246,7 @@ modalStyle =
         ]
 
 
-boardCell : Color -> Maybe Color -> Cell CValue -> Element Msg
+boardCell : Color -> Maybe Color -> BoardCell -> Element Msg
 boardCell color modalColor cell =
     let
         baseAttr =
@@ -256,7 +270,7 @@ boardCell color modalColor cell =
                     , Font.color mC
                     ]
                 )
-                { onPress = Just <| ShowModalWindow cell.pos
+                { onPress = Just <| ShowModalWindow cell.position
                 , label = innerElement
                 }
 

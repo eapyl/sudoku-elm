@@ -5,9 +5,9 @@ import Sudoku.Model exposing (CValue, Cell, ModalCValue, Position)
 
 type Msg
     = ValuesForDiagonalBoxesGenerated ( List CValue, List CValue, List CValue )
-    | FreeCellSelected (List (Cell CValue)) (Cell CValue)
+    | FreeCellSelected (List Position) Position
     | RemoveValueFromBoard (List Position)
-    | RandomValueGenerated (List (Cell CValue)) Position CValue
-    | DelayCommand (List (Cell CValue))
+    | RandomValueGenerated (List Position) Position CValue
+    | DelayCommand (List Position)
     | ShowModalWindow Position
     | ModalCommand (Cell ModalCValue)

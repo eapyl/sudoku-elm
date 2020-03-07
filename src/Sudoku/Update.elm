@@ -1,4 +1,4 @@
-module Sudoku.Update exposing (createBoard, emptyModel, isValidValue, setCell, setComplexity, update)
+module Sudoku.Update exposing (createBoard, emptyModel, setComplexity, update)
 
 import Process
 import Random
@@ -6,8 +6,9 @@ import Random.List
 import Sudoku.Model
     exposing
         ( Board
+        , BoardCell
+        , BoardCellType(..)
         , CValue(..)
-        , Cell
         , Complexity(..)
         , Index
         , ModalCValue(..)
@@ -58,8 +59,8 @@ update msg model =
                                 allGeneratedValues
                                     |> List.filterMap
                                         (\( pos, value ) ->
-                                            if boardCell.pos == pos then
-                                                Just <| Cell pos value
+                                            if boardCell.position == pos then
+                                                Just <| BoardCell pos value Initial
 
                                             else
                                                 Nothing
@@ -69,13 +70,13 @@ update msg model =
                             )
             in
             ( { model | board = updatedBoard }
-            , generateBoard <| getFreeCells updatedBoard
+            , generateBoard <| getPositionsOfFreeCells updatedBoard
             )
 
-        FreeCellSelected freeCells cell ->
+        FreeCellSelected freeCellPositions position ->
             let
                 usedValues =
-                    getUsedValues model.board cell.pos
+                    getUsedValues model.board position
 
                 getPossibleValuesForCell =
                     allValues
@@ -85,7 +86,7 @@ update msg model =
                     case getPossibleValuesForCell of
                         head :: tail ->
                             Random.generate
-                                (RandomValueGenerated freeCells cell.pos)
+                                (RandomValueGenerated freeCellPositions position)
                                 (valueGenerator head tail)
 
                         [] ->
@@ -114,7 +115,7 @@ update msg model =
                 freeCellsPositions =
                     boardWithFreeCells
                         |> List.filter (\x -> x.value == Empty)
-                        |> List.map (\x -> x.pos)
+                        |> List.map (\x -> x.position)
             in
             ( { model
                 | board = boardWithFreeCells
@@ -124,35 +125,27 @@ update msg model =
             , Cmd.none
             )
 
-        RandomValueGenerated freeCells cellPos randomValue ->
+        RandomValueGenerated freeCellPositions cellPos randomValue ->
             let
                 filteredCells =
-                    freeCells
-                        |> List.filter (\c -> c.pos /= cellPos)
+                    freeCellPositions
+                        |> List.filter (\c -> c /= cellPos)
 
                 updatedBoard =
-                    model.board
-                        |> List.map
-                            (\c ->
-                                if c.pos == cellPos then
-                                    { c | value = randomValue }
-
-                                else
-                                    c
-                            )
+                    updateCellOnBoard model.board (BoardCell cellPos randomValue Initial)
 
                 oneSolution =
                     hasAtLeastOneSolution updatedBoard filteredCells
 
                 ( updatedModel, remainingCells ) =
                     if List.member ( cellPos, randomValue ) model.triedValues then
-                        ( model.board, freeCells )
+                        ( model.board, freeCellPositions )
 
                     else if oneSolution then
                         ( updatedBoard, filteredCells )
 
                     else
-                        ( model.board, freeCells )
+                        ( model.board, freeCellPositions )
             in
             ( { model
                 | solution = updatedModel
@@ -163,7 +156,7 @@ update msg model =
                         Just "Finalizing"
 
                     else
-                        Just <| (((54 - List.length freeCells) * 100 // 54) |> String.fromInt) ++ "%"
+                        Just <| (((54 - List.length freeCellPositions) * 100 // 54) |> String.fromInt) ++ "%"
               }
             , sendDelayed DelayCommand remainingCells
             )
@@ -182,16 +175,15 @@ update msg model =
             case cell.value of
                 Number selectedCValue ->
                     let
-                        newBoard =
-                            model.board
-                                |> List.map
-                                    (\c ->
-                                        if c.pos == cell.pos then
-                                            { c | value = selectedCValue }
+                        isValid =
+                            isValidValue model.board ( cell.pos, selectedCValue )
 
-                                        else
-                                            c
-                                    )
+                        newBoard =
+                            if isValid then
+                                updateCellOnBoard model.board (BoardCell cell.pos selectedCValue Valid)
+
+                            else
+                                updateCellOnBoard model.board (BoardCell cell.pos selectedCValue Invalid)
                     in
                     ( { model
                         | board = newBoard
@@ -223,11 +215,11 @@ sendDelayed msg a =
         |> Task.perform (\_ -> msg a)
 
 
-generateBoard : List (Cell CValue) -> Cmd Msg
-generateBoard freeCells =
-    case freeCells of
+generateBoard : List Position -> Cmd Msg
+generateBoard freeCellPositions =
+    case freeCellPositions of
         head :: tail ->
-            Random.generate (FreeCellSelected freeCells) <| freeCellGenerator head tail
+            Random.generate (FreeCellSelected freeCellPositions) <| freeCellGenerator head tail
 
         [] ->
             Random.generate RemoveValueFromBoard positionCompleteGenerator
@@ -243,7 +235,7 @@ createBoard =
     Random.generate ValuesForDiagonalBoxesGenerated valueCompleteGenerator
 
 
-freeCellGenerator : Cell CValue -> List (Cell CValue) -> Random.Generator (Cell CValue)
+freeCellGenerator : Position -> List Position -> Random.Generator Position
 freeCellGenerator initialCell otherFreeCells =
     Random.uniform initialCell otherFreeCells
 
@@ -277,29 +269,17 @@ valueCompleteGenerator =
         listGenerator
 
 
-setCell : Model -> Cell CValue -> Model
-setCell model cell =
-    let
-        newBoard =
-            model.board
-                |> List.map
-                    (\c ->
-                        if c.pos == cell.pos then
-                            { c | value = cell.value }
+updateCellOnBoard : Board -> BoardCell -> Board
+updateCellOnBoard board cell =
+    board
+        |> List.map
+            (\c ->
+                if c.position == cell.position then
+                    { c | value = cell.value }
 
-                        else
-                            c
-                    )
-    in
-    { model
-        | board = newBoard
-        , status =
-            if newBoard == model.solution then
-                Just "Solved!"
-
-            else
-                Nothing
-    }
+                else
+                    c
+            )
 
 
 type SolutionCount
@@ -308,22 +288,19 @@ type SolutionCount
     | More
 
 
-hasOnlyOneSolution : Board -> List (Cell CValue) -> Bool
-hasOnlyOneSolution board freeCells =
-    case backtracking False Zero board freeCells of
-        Zero ->
-            False
-
+hasOnlyOneSolution : Board -> List Position -> Bool
+hasOnlyOneSolution board freeCellPositions =
+    case backtracking False Zero board freeCellPositions of
         Single ->
             True
 
-        More ->
+        _ ->
             False
 
 
-hasAtLeastOneSolution : Board -> List (Cell CValue) -> Bool
-hasAtLeastOneSolution board freeCells =
-    case backtracking True Zero board freeCells of
+hasAtLeastOneSolution : Board -> List Position -> Bool
+hasAtLeastOneSolution board freeCellPositions =
+    case backtracking True Zero board freeCellPositions of
         Zero ->
             False
 
@@ -331,13 +308,13 @@ hasAtLeastOneSolution board freeCells =
             True
 
 
-backtracking : Bool -> SolutionCount -> Board -> List (Cell CValue) -> SolutionCount
-backtracking oneSolutionEnough count board freeCells =
-    case freeCells of
+backtracking : Bool -> SolutionCount -> Board -> List Position -> SolutionCount
+backtracking oneSolutionEnough count board freeCellPositions =
+    case freeCellPositions of
         head :: tail ->
             let
                 usedValues =
-                    getUsedValues board head.pos
+                    getUsedValues board head
 
                 tryValuesForCell solutionCount possibleValues =
                     case possibleValues of
@@ -347,7 +324,7 @@ backtracking oneSolutionEnough count board freeCells =
                                     board
                                         |> List.map
                                             (\c ->
-                                                if c.pos == head.pos then
+                                                if c.position == head then
                                                     { c | value = possibleValue }
 
                                                 else
@@ -396,7 +373,7 @@ tryToRemoveValuesFromBoard positionsToClean board =
                     board
                         |> List.map
                             (\c ->
-                                if c.pos == currentPositionToClean then
+                                if c.position == currentPositionToClean then
                                     { c | value = Empty }
 
                                 else
@@ -404,7 +381,7 @@ tryToRemoveValuesFromBoard positionsToClean board =
                             )
 
                 onlyOneSolution =
-                    hasOnlyOneSolution updatedBoard <| getFreeCells updatedBoard
+                    hasOnlyOneSolution updatedBoard <| getPositionsOfFreeCells updatedBoard
             in
             if onlyOneSolution then
                 tryToRemoveValuesFromBoard restPositions updatedBoard
@@ -458,13 +435,13 @@ getAllNonEmptyValuesInBoxWithSkip skipCell board pos =
         |> List.filter (\c -> c.value /= Empty)
         |> List.filter
             (\c ->
-                getBoxIndex pos == getBoxIndex c.pos
+                getBoxIndex pos == getBoxIndex c.position
             )
         |> List.filter
             (\c ->
                 case skipCell of
                     Just v ->
-                        v /= c.pos
+                        v /= c.position
 
                     Nothing ->
                         True
@@ -495,7 +472,7 @@ getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
             (\c ->
                 let
                     ( row, col ) =
-                        c.pos
+                        c.position
                 in
                 if isRow then
                     row == index
@@ -507,7 +484,7 @@ getAllNonEmptyValuesWithSkip skipRowOrCol isRow board index =
             (\c ->
                 let
                     ( row, col ) =
-                        c.pos
+                        c.position
                 in
                 case skipRowOrCol of
                     Just v ->
@@ -540,21 +517,22 @@ rawIndexToPossiblePosition i =
     ( fromInt row, fromInt column )
 
 
-getFreeCells : Board -> List (Cell CValue)
-getFreeCells board =
+getPositionsOfFreeCells : Board -> List Position
+getPositionsOfFreeCells board =
     board
         |> List.filter (\c -> c.value == Empty)
+        |> List.map (\c -> c.position)
 
 
-isValidValue : Board -> Cell CValue -> Bool
-isValidValue board cell =
+isValidValue : Board -> ( Position, CValue ) -> Bool
+isValidValue board ( position, cvalue ) =
     let
         ( row, col ) =
-            cell.pos
+            position
     in
-    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cell.value |> not)
-        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cell.value |> not)
-        && (getAllNonEmptyValuesInBoxWithSkip (Just cell.pos) board cell.pos |> List.member cell.value |> not)
+    (getAllNonEmptyValuesWithSkip (Just col) True board row |> List.member cvalue |> not)
+        && (getAllNonEmptyValuesWithSkip (Just row) False board col |> List.member cvalue |> not)
+        && (getAllNonEmptyValuesInBoxWithSkip (Just position) board position |> List.member cvalue |> not)
 
 
 emptyModel : Model
@@ -575,4 +553,4 @@ initEmptyBoard =
                     _ ->
                         Nothing
             )
-        |> List.map (\pos -> Cell pos Empty)
+        |> List.map (\pos -> BoardCell pos Empty Initial)
