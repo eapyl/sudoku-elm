@@ -1,5 +1,6 @@
 module Color exposing
-    ( gray100
+    ( blue
+    , gray100
     , gray200
     , gray300
     , gray400
@@ -40,6 +41,11 @@ hexToColor hexValue =
 
     else
         white
+
+
+blue : Color
+blue =
+    hexToColor "1293D8"
 
 
 white : Color

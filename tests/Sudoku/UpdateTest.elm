@@ -21,11 +21,12 @@ updateTest =
     describe "Main"
         [ describe "Update tests"
             [ fuzz randomValueListFuzzer "InitialValuesForBoardGenerated - updated board and next command called" <|
-                \randomBoard ->
-                    update (InitialValuesForBoardGenerated randomBoard) emptyModel
-                        |> (\( model, _ ) ->
-                                Expect.equal Nothing model.status
-                           )
+                \randomBoardValues ->
+                    update (InitialValuesForBoardGenerated randomBoardValues) emptyModel
+                        |> Expect.all
+                            [ \( m, _ ) -> Expect.equal Nothing m.status
+                            , \( m, _ ) -> Expect.equalLists (List.map (\x -> x.value) m.board) randomBoardValues
+                            ]
             , todo "FreeCellSelected"
             , todo "RemoveValueFromBoard"
             , todo "RandomValueGenerated"

@@ -4,6 +4,7 @@ import Color exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
 import Model exposing (Model)
@@ -43,8 +44,36 @@ mainView model =
             [ createButton Easy
             , createButton Normal
             , createButton Hard
+            , linkSource
+            , version
             ]
         ]
+
+
+version : Element msg
+version =
+    Element.el linkAttributes <|
+        text "v1.0.4"
+
+
+linkSource : Element msg
+linkSource =
+    link linkAttributes
+        { url = "https://github.com/eapyl/sudoku-elm"
+        , label = text "Source"
+        }
+
+
+linkAttributes : List (Attribute msg)
+linkAttributes =
+    [ Font.color blue
+    , Element.alignRight
+    , Element.alignBottom
+    , Font.size 12
+    , Font.family
+        [ Font.monospace
+        ]
+    ]
 
 
 mixin : List (Attribute msg) -> List (Attribute msg) -> List (Attribute msg)
