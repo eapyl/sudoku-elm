@@ -24,7 +24,12 @@ updateTest =
                 \randomBoardValues ->
                     update (InitialValuesForBoardGenerated randomBoardValues) emptyModel
                         |> Expect.all
-                            [ \( m, _ ) -> Expect.equal Nothing m.status
+                            [ \( m, _ ) ->
+                                if List.any (\a -> a == Empty) randomBoardValues then
+                                    Expect.equal Nothing m.status
+
+                                else
+                                    Expect.equal (Just "No empty cells on board") m.status
                             , \( m, _ ) -> Expect.equalLists (List.map (\x -> x.value) m.board) randomBoardValues
                             ]
             , todo "FreeCellSelected"

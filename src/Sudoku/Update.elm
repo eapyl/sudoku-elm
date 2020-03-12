@@ -35,10 +35,23 @@ update msg model =
                                     { boardCell | value = generatedValue }
                             )
                             model.board
+
+                freeCellPositions =
+                    getPositionsOfFreeCells updatedBoard
+
+                modelWithNewBoard =
+                    { model | board = updatedBoard }
             in
-            ( { model | board = updatedBoard, status = Nothing }
-            , generateBoard <| getPositionsOfFreeCells updatedBoard
-            )
+            case freeCellPositions of
+                head :: tail ->
+                    ( { modelWithNewBoard | status = Nothing }
+                    , Random.generate (FreeCellSelected freeCellPositions) <| freeCellGenerator head tail
+                    )
+
+                [] ->
+                    ( { modelWithNewBoard | status = Just "No empty cells on board" }
+                    , Cmd.none
+                    )
 
         FreeCellSelected freeCellPositions position ->
             let
@@ -178,7 +191,7 @@ update msg model =
 
 sendDelayed : (a -> msg) -> a -> Cmd msg
 sendDelayed msg a =
-    Process.sleep 20
+    Process.sleep 0
         |> Task.perform (\_ -> msg a)
 
 
