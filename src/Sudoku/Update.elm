@@ -61,20 +61,19 @@ update msg model =
                 getPossibleValuesForCell =
                     allValues
                         |> List.filter (\a -> List.member a usedValues |> not)
-
-                command =
-                    case getPossibleValuesForCell of
-                        head :: tail ->
-                            Random.generate
-                                (RandomValueGenerated freeCellPositions position)
-                                (valueGenerator head tail)
-
-                        [] ->
-                            Cmd.none
             in
-            ( model
-            , command
-            )
+            case getPossibleValuesForCell of
+                head :: tail ->
+                    ( { model | status = Just "Free sell selected" }
+                    , Random.generate
+                        (RandomValueGenerated freeCellPositions position)
+                        (valueGenerator head tail)
+                    )
+
+                [] ->
+                    ( { model | status = Just "Incorrect state of the application" }
+                    , Cmd.none
+                    )
 
         RemoveValueFromBoard positionsToClean ->
             let
