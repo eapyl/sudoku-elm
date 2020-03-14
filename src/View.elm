@@ -53,7 +53,7 @@ mainView model =
 version : Element msg
 version =
     Element.el linkAttributes <|
-        text "v1.0.4"
+        text "v1.0.5"
 
 
 linkSource : Element msg

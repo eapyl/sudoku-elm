@@ -38,41 +38,52 @@ update msg model =
 
                 freeCellPositions =
                     getPositionsOfFreeCells updatedBoard
-
-                modelWithNewBoard =
-                    { model | board = updatedBoard }
             in
-            case freeCellPositions of
-                head :: tail ->
-                    ( { modelWithNewBoard | status = Nothing }
-                    , Random.generate (FreeCellSelected freeCellPositions) <| freeCellGenerator head tail
+            ( { model | board = updatedBoard, status = Nothing }
+            , Random.generate (FreeCellSelected freeCellPositions) <| cellGenerator updatedBoard freeCellPositions
+            )
+
+        FreeCellSelected freeCellPositions boardCell ->
+            case boardCell of
+                Just cell ->
+                    let
+                        filteredCells =
+                            freeCellPositions
+                                |> List.filter (\c -> c /= cell.position)
+
+                        updatedBoard =
+                            updateCellOnBoard model.board cell
+
+                        oneSolution =
+                            hasAtLeastOneSolution updatedBoard filteredCells
+
+                        ( updatedModel, remainingCells ) =
+                            if List.member ( cell.position, cell.value ) model.triedValues then
+                                ( model.board, freeCellPositions )
+
+                            else if oneSolution then
+                                ( updatedBoard, filteredCells )
+
+                            else
+                                ( model.board, freeCellPositions )
+                    in
+                    ( { model
+                        | solution = updatedModel
+                        , board = updatedModel
+                        , triedValues = ( cell.position, cell.value ) :: model.triedValues
+                        , status =
+                            if List.isEmpty remainingCells then
+                                Just "Finalizing"
+
+                            else
+                                Just <| (((54 - List.length freeCellPositions) * 100 // 54) |> String.fromInt) ++ "%"
+                      }
+                    , sendDelayed DelayCommand remainingCells
                     )
 
-                [] ->
-                    ( { modelWithNewBoard | status = Just "No empty cells on board" }
-                    , Cmd.none
-                    )
-
-        FreeCellSelected freeCellPositions position ->
-            let
-                usedValues =
-                    getUsedValues model.board position
-
-                getPossibleValuesForCell =
-                    allValues
-                        |> List.filter (\a -> List.member a usedValues |> not)
-            in
-            case getPossibleValuesForCell of
-                head :: tail ->
-                    ( { model | status = Just "Free sell selected" }
-                    , Random.generate
-                        (RandomValueGenerated freeCellPositions position)
-                        (valueGenerator head tail)
-                    )
-
-                [] ->
-                    ( { model | status = Just "Incorrect state of the application" }
-                    , Cmd.none
+                Nothing ->
+                    ( model
+                    , Random.generate RemoveValueFromBoard positionCompleteGenerator
                     )
 
         RemoveValueFromBoard positionsToClean ->
@@ -104,45 +115,9 @@ update msg model =
             , Cmd.none
             )
 
-        RandomValueGenerated freeCellPositions cellPos randomValue ->
-            let
-                filteredCells =
-                    freeCellPositions
-                        |> List.filter (\c -> c /= cellPos)
-
-                updatedBoard =
-                    updateCellOnBoard model.board (BoardCell cellPos randomValue Initial)
-
-                oneSolution =
-                    hasAtLeastOneSolution updatedBoard filteredCells
-
-                ( updatedModel, remainingCells ) =
-                    if List.member ( cellPos, randomValue ) model.triedValues then
-                        ( model.board, freeCellPositions )
-
-                    else if oneSolution then
-                        ( updatedBoard, filteredCells )
-
-                    else
-                        ( model.board, freeCellPositions )
-            in
-            ( { model
-                | solution = updatedModel
-                , board = updatedModel
-                , triedValues = ( cellPos, randomValue ) :: model.triedValues
-                , status =
-                    if List.isEmpty remainingCells then
-                        Just "Finalizing"
-
-                    else
-                        Just <| (((54 - List.length freeCellPositions) * 100 // 54) |> String.fromInt) ++ "%"
-              }
-            , sendDelayed DelayCommand remainingCells
-            )
-
         DelayCommand remainingCells ->
             ( model
-            , generateBoard remainingCells
+            , Random.generate (FreeCellSelected remainingCells) <| cellGenerator model.board remainingCells
             )
 
         ShowModalWindow selectedPos ->
@@ -194,29 +169,40 @@ sendDelayed msg a =
         |> Task.perform (\_ -> msg a)
 
 
-generateBoard : List Position -> Cmd Msg
-generateBoard freeCellPositions =
-    case freeCellPositions of
-        head :: tail ->
-            Random.generate (FreeCellSelected freeCellPositions) <| freeCellGenerator head tail
-
-        [] ->
-            Random.generate RemoveValueFromBoard positionCompleteGenerator
-
-
-valueGenerator : Value -> List Value -> Random.Generator Value
-valueGenerator initial rest =
-    Random.uniform initial rest
-
-
 createBoard : Cmd Msg
 createBoard =
     Random.generate InitialValuesForBoardGenerated initialValuesForBoardGenerator
 
 
-freeCellGenerator : Position -> List Position -> Random.Generator Position
-freeCellGenerator initialCell otherFreeCells =
-    Random.uniform initialCell otherFreeCells
+cellGenerator : Board -> List Position -> Random.Generator (Maybe BoardCell)
+cellGenerator board freeCellPositions =
+    case freeCellPositions of
+        head :: _ ->
+            Random.uniform head freeCellPositions
+                |> Random.andThen
+                    (\freeCellPosition ->
+                        let
+                            usedValues =
+                                getUsedValues board freeCellPosition
+
+                            getPossibleValuesForCell =
+                                allValues
+                                    |> List.filter (\a -> List.member a usedValues |> not)
+                        in
+                        case getPossibleValuesForCell of
+                            h :: _ ->
+                                Random.uniform h getPossibleValuesForCell
+                                    |> Random.map
+                                        (\value ->
+                                            Just <| BoardCell freeCellPosition value Initial
+                                        )
+
+                            [] ->
+                                Random.constant Nothing
+                    )
+
+        [] ->
+            Random.constant Nothing
 
 
 positionCompleteGenerator : Random.Generator (List Position)
