@@ -66,6 +66,15 @@ update msg model =
 
                             else
                                 ( model.board, freeCellPositions )
+
+                        freeCellNumberAfterInitialization =
+                            boardSize - 3 * size
+
+                        freeCellLeft =
+                            freeCellNumberAfterInitialization - List.length freeCellPositions
+
+                        percent =
+                            freeCellLeft * 100 // freeCellNumberAfterInitialization
                     in
                     ( { model
                         | solution = updatedModel
@@ -76,7 +85,7 @@ update msg model =
                                 Just "Finalizing"
 
                             else
-                                Just <| (((54 - List.length freeCellPositions) * 100 // 54) |> String.fromInt) ++ "%"
+                                Just <| (percent |> String.fromInt) ++ "%"
                       }
                     , sendDelayed DelayCommand remainingCells
                     )
@@ -176,30 +185,32 @@ createBoard =
 
 cellGenerator : Board -> List Position -> Random.Generator (Maybe BoardCell)
 cellGenerator board freeCellPositions =
+    let
+        boardCellGenerator : Position -> Random.Generator (Maybe BoardCell)
+        boardCellGenerator freeCellPosition =
+            let
+                usedValues =
+                    getUsedValues board freeCellPosition
+
+                getPossibleValuesForCell =
+                    allValues
+                        |> List.filter (\a -> List.member a usedValues |> not)
+            in
+            case getPossibleValuesForCell of
+                h :: _ ->
+                    Random.uniform h getPossibleValuesForCell
+                        |> Random.map
+                            (\value ->
+                                Just <| BoardCell freeCellPosition value Initial
+                            )
+
+                [] ->
+                    Random.constant Nothing
+    in
     case freeCellPositions of
         head :: _ ->
             Random.uniform head freeCellPositions
-                |> Random.andThen
-                    (\freeCellPosition ->
-                        let
-                            usedValues =
-                                getUsedValues board freeCellPosition
-
-                            getPossibleValuesForCell =
-                                allValues
-                                    |> List.filter (\a -> List.member a usedValues |> not)
-                        in
-                        case getPossibleValuesForCell of
-                            h :: _ ->
-                                Random.uniform h getPossibleValuesForCell
-                                    |> Random.map
-                                        (\value ->
-                                            Just <| BoardCell freeCellPosition value Initial
-                                        )
-
-                            [] ->
-                                Random.constant Nothing
-                    )
+                |> Random.andThen boardCellGenerator
 
         [] ->
             Random.constant Nothing
@@ -382,12 +393,13 @@ tryToRemoveValuesFromBoard positionsToClean board =
 
 getUsedValues : Board -> Position -> List Value
 getUsedValues board { row, col, box } =
-    let
-        isFiltered pos =
-            pos.row == row || pos.col == col || pos.box == box
-    in
     board
-        |> List.filter (\c -> c.value /= Empty && isFiltered c.position)
+        |> List.filter
+            (\c ->
+                c.value
+                    /= Empty
+                    && (c.position.row == row || c.position.col == col || c.position.box == box)
+            )
         |> List.map (\c -> c.value)
 
 
