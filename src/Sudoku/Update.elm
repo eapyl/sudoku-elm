@@ -39,7 +39,7 @@ update msg model =
                 freeCellPositions =
                     getPositionsOfFreeCells updatedBoard
             in
-            ( { model | board = updatedBoard, status = Nothing }
+            ( { model | board = updatedBoard, status = Just <| "Initial board generated." }
             , Random.generate (FreeCellSelected freeCellPositions) <| cellGenerator updatedBoard freeCellPositions
             )
 

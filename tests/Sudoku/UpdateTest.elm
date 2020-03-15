@@ -16,16 +16,6 @@ randomValueListFuzzer =
     Fuzz.map (List.repeat boardSize) (Fuzz.custom (Random.uniform Empty allValues) Shrink.noShrink)
 
 
-randomPositionListFuzzer : Fuzz.Fuzzer (List Position)
-randomPositionListFuzzer =
-    Fuzz.map3
-        (\a -> \b -> \c -> Position a b c)
-        (Fuzz.custom (Random.uniform First allIndexes) Shrink.noShrink)
-        (Fuzz.custom (Random.uniform First allIndexes) Shrink.noShrink)
-        (Fuzz.custom (Random.uniform First allIndexes) Shrink.noShrink)
-        |> Fuzz.list
-
-
 updateTest : Test
 updateTest =
     describe "Main"
@@ -34,18 +24,11 @@ updateTest =
                 \randomBoardValues ->
                     update (InitialValuesForBoardGenerated randomBoardValues) emptyModel
                         |> Expect.all
-                            [ \( m, _ ) ->
-                                if List.any (\a -> a == Empty) randomBoardValues then
-                                    Expect.equal Nothing m.status
-
-                                else
-                                    Expect.equal (Just "No empty cells on board") m.status
+                            [ \( m, _ ) -> Expect.equal (Just "Initial board generated.") m.status
                             , \( m, _ ) -> Expect.equalLists (List.map (\x -> x.value) m.board) randomBoardValues
                             ]
-            , fuzz2 randomPositionListFuzzer "FreeCellSelected"
+            , todo "FreeCellSelected"
             , todo "RemoveValueFromBoard"
-            , todo "RandomValueGenerated"
-            , todo "DelayCommand"
             , todo "ShowModalWindow"
             , todo "ModalCommand"
             ]
