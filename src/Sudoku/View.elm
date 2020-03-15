@@ -53,7 +53,7 @@ generateRow initialFreeCells selected board index =
             |> List.map
                 (\cell ->
                     let
-                        { row, col, box } =
+                        { row, col } =
                             cell.position
 
                         isGray =
@@ -109,7 +109,7 @@ getCell board ( row, col ) =
 
 
 modalCell : Maybe Position -> Position -> Maybe ModalCell
-modalCell selectedCell { row, col, box } =
+modalCell selectedCell { row, col } =
     let
         targetRow =
             indexToInt row

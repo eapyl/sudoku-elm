@@ -54,14 +54,8 @@ update msg model =
                         updatedBoard =
                             updateCellOnBoard model.board cell
 
-                        oneSolution =
-                            hasAtLeastOneSolution updatedBoard filteredCells
-
                         ( updatedModel, remainingCells ) =
-                            if List.member ( cell.position, cell.value ) model.triedValues then
-                                ( model.board, freeCellPositions )
-
-                            else if oneSolution then
+                            if hasAtLeastOneSolution updatedBoard filteredCells then
                                 ( updatedBoard, filteredCells )
 
                             else
@@ -79,7 +73,6 @@ update msg model =
                     ( { model
                         | solution = updatedModel
                         , board = updatedModel
-                        , triedValues = ( cell.position, cell.value ) :: model.triedValues
                         , status =
                             if List.isEmpty remainingCells then
                                 Just "Finalizing"
@@ -451,7 +444,7 @@ isValidValue board ( position, cvalue ) =
 
 emptyModel : Model
 emptyModel =
-    Model initEmptyBoard initEmptyBoard [] [] Easy Nothing (Just "Generating board")
+    Model initEmptyBoard initEmptyBoard [] Easy Nothing (Just "Generating board")
 
 
 initEmptyBoard : Board

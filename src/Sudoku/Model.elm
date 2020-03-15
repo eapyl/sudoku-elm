@@ -85,7 +85,6 @@ type alias Model =
     { board : Board
     , solution : Board
     , freeCells : List Position
-    , triedValues : List ( Position, Value )
     , complexity : Complexity
     , selectedCell : Maybe Position
     , status : Maybe String

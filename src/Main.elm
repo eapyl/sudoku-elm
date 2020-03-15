@@ -25,3 +25,9 @@ main =
                 }
         , subscriptions = \_ -> Sub.none
         }
+
+
+
+-- TODO:
+-- 1. Save already solved boards to localStore
+-- 2. Leader board
