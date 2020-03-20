@@ -254,7 +254,7 @@ initialValuesForBoardGenerator =
                 List.repeat 6 Empty ++ (list |> List.drop (3 * row) |> List.take 3)
     in
     Random.map3
-        (\a -> \b -> \c -> a ++ b ++ c)
+        (\a b c -> a ++ b ++ c)
         (listGenerator 1)
         (listGenerator 2)
         (listGenerator 3)
